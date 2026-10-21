@@ -3,13 +3,15 @@
 const byId = id => document.getElementById(id);
 const SETTINGS_KEY = 'kucoin-radar-settings-v1';
 const FAVORITES_KEY = 'kucoin-radar-favorites-v1';
+const EARLY_COOLDOWN_KEY = 'kucoin-radar-early-cooldown-v13';
 const SAFE = {minVolume:5_000_000,maxSpread:0.30,buy15:1.10,buy30:1.8,buy5:0.2,watch15:0.45,watch30:0.7};
 let settings = {};
 try { settings = JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}'); } catch {}
 let favoriteList = [];
 try { favoriteList = JSON.parse(localStorage.getItem(FAVORITES_KEY) || '[]'); } catch {}
 const favorites = new Set(Array.isArray(favoriteList) ? favoriteList : []);
-const state = {rows:[],latest:null,filter:'ALL',search:'',sort:'rank',shown:50,initial:true, previous:new Map(), alertEnabled:false, sound:false, localAlerts:[], audio:null,modalSymbol:null};
+const state = {rows:[],latest:null,filter:'ALL',search:'',sort:'rank',shown:50,initial:true, previous:new Map(),previousEarly:new Map(),lastEarly:new Map(), alertEnabled:false,earlyEnabled:false,sound:false, localAlerts:[], audio:null,modalSymbol:null};
+try { const old=JSON.parse(localStorage.getItem(EARLY_COOLDOWN_KEY)||'[]'); if(Array.isArray(old))state.lastEarly=new Map(old.filter(x=>Array.isArray(x)&&typeof x[0]==='string'&&Number.isFinite(x[1]))); } catch {}
 const STATUS_ORDER = {BUY:0,WATCH:1,AVOID:2,DATA:3};
 let cfg = {...SAFE};
 function num(v){return typeof v==='number' && Number.isFinite(v) ? v : null;}
@@ -30,7 +32,10 @@ function timeText(at){return at?new Date(at).toLocaleTimeString('ms-MY',{hour:'2
 function scoreOf(r){
   if([r.m5,r.m15,r.m30,r.spread].some(v=>num(v)===null))return 0;
   const cap=(v)=>Math.max(0,Math.min(1,v));
-  return Math.round(Math.min(100,cap(r.m15/3.2)*32+cap(r.m30/5)*20+cap(r.m5/.9)*18+cap((Math.log10(Math.max(1,r.volume))-5)/3)*15+cap(1-r.spread/Math.max(.01,cfg.maxSpread*2))*15+(r.m15>(r.m30-r.m15)+.05?4:0)));
+  const base=cap(r.m15/3.2)*32+cap(r.m30/5)*20+cap(r.m5/.9)*18+cap((Math.log10(Math.max(1,r.volume))-5)/3)*15+cap(1-r.spread/Math.max(.01,cfg.maxSpread*2))*15+(r.m15>(r.m30-r.m15)+.05?4:0);
+  const m=window.RadarAcceleration?.metrics(r);
+  const shortTerm=m?Math.max(-12,Math.min(8,m.delta*12))+(r.m1<0?-5:r.m1>=.10?2:0):0;
+  return Math.round(Math.max(0,Math.min(100,base+shortTerm)));
 }
 function assess(r){
   if([r.m5,r.m15,r.m30,r.spread].some(v=>num(v)===null))return 'DATA';
@@ -67,16 +72,46 @@ function browserAlert(r){
     try { const note=new Notification(`KuCoin Radar • ${r.symbol} BUY`,{body:`15m ${percent(r.m15)} | 30m ${percent(r.m30)} | USDT ${price(r.price)}. Semak sebelum trade.`,icon:'/icon.svg',tag:`signal-${r.symbol}`});note.onclick=()=>{window.focus();openDetail(r.symbol);note.close();};}catch{}
   }
 }
+function earlyBrowserAlert(r){
+  const m=window.RadarAcceleration?.metrics(r);
+  state.localAlerts.unshift({symbol:r.symbol,at:Date.now(),price:r.price,m15:r.m15,m30:r.m30,type:'EARLY'});
+  state.localAlerts=state.localAlerts.slice(0,20);
+  toast(`EARLY WATCH (BUKAN BUY): ${r.symbol} • pecutan ${m?percent(m.delta):'—'} mata peratus`);
+  if(state.sound)alertSound();
+  if(state.alertEnabled && state.earlyEnabled && 'Notification' in window && Notification.permission==='granted'){
+    try { const note=new Notification(`EARLY WATCH • ${r.symbol} (bukan BUY)`,{body:`Momentum mempercepat. Belum ada signal BUY. 15m ${percent(r.m15)}. Semak chart.`,icon:'/icon.svg',tag:`early-${r.symbol}`}); note.onclick=()=>{window.focus();openDetail(r.symbol);note.close();}; }catch{}
+  }
+}
+function earlyCandidates(rows){
+ const chosen=window.RadarTop10?.choose(rows,cfg)?.leaders || [];
+ return chosen.filter(r=>window.RadarAcceleration?.nearBuy(r,cfg));
+}
 function handleSignals(rows){
-  if(state.initial){rows.forEach(r=>state.previous.set(r.symbol,r.status));state.initial=false;return;}
+  const early=earlyCandidates(rows);
+  const active=new Set(early.map(r=>r.symbol));
+  if(state.initial){rows.forEach(r=>state.previous.set(r.symbol,r.status));for(const r of early)state.previousEarly.set(r.symbol,true);state.initial=false;return;}
   for(const r of rows){
     const old=state.previous.get(r.symbol);
     if(state.alertEnabled && !state.latest?.mock && r.status==='BUY' && old && old!=='BUY') browserAlert(r);
     state.previous.set(r.symbol,r.status);
   }
+  if(state.alertEnabled && state.earlyEnabled && !state.latest?.mock){
+    let emitted=0;
+    for(const r of early){
+      const last=state.lastEarly.get(r.symbol)||0;
+      if(!state.previousEarly.has(r.symbol) && Date.now()-last>15*60_000 && emitted<2){
+        earlyBrowserAlert(r);state.lastEarly.set(r.symbol,Date.now());emitted++;
+      }
+    }
+    if(emitted){
+      const keep=[...state.lastEarly].filter(([,at])=>Date.now()-at<24*60*60_000).slice(-500);
+      state.lastEarly=new Map(keep);localStorage.setItem(EARLY_COOLDOWN_KEY,JSON.stringify(keep));
+    }
+  }
+  state.previousEarly=new Map([...active].map(symbol=>[symbol,true]));
 }
 function persistSettings(){
-  localStorage.setItem(SETTINGS_KEY,JSON.stringify({minVolume:cfg.minVolume,maxSpread:cfg.maxSpread,buy15:cfg.buy15,alertEnabled:state.alertEnabled,sound:state.sound}));
+  localStorage.setItem(SETTINGS_KEY,JSON.stringify({minVolume:cfg.minVolume,maxSpread:cfg.maxSpread,buy15:cfg.buy15,alertEnabled:state.alertEnabled,earlyEnabled:state.earlyEnabled,sound:state.sound}));
 }
 function initializeControls(){
   cfg.minVolume=Number(settings.minVolume)||SAFE.minVolume;
@@ -84,7 +119,7 @@ function initializeControls(){
   cfg.buy15=Number(settings.buy15)||SAFE.buy15;
   for(const [id,key] of [['minVolume','minVolume'],['maxSpread','maxSpread'],['minMomentum','buy15']]){
     const select=byId(id); select.value=String(cfg[key]);
-    select.addEventListener('change',()=>{cfg[key]=Number(select.value);persistSettings();recompute(false);});
+    select.addEventListener('change',()=>{cfg[key]=Number(select.value);persistSettings();recompute(false);state.previousEarly=new Map(earlyCandidates(state.rows).map(r=>[r.symbol,true]));});
   }
   byId('soundButton').addEventListener('click',()=>{state.sound=!state.sound;byId('soundButton').textContent=state.sound?'♫ Bunyi ON':'♫ Bunyi OFF';byId('soundButton').setAttribute('aria-pressed',String(state.sound));if(state.sound)alertSound();persistSettings();});
   byId('alertSwitch').addEventListener('change',async e=>{
@@ -95,10 +130,22 @@ function initializeControls(){
       if(permission!=='granted')permission=await Notification.requestPermission();
       if(permission!=='granted'){e.target.checked=false;toast('Kebenaran notifikasi tidak diberikan.',true);return;}
     }
-    state.alertEnabled=e.target.checked;persistSettings();toast(state.alertEnabled?'Alert browser aktif (selagi laman terbuka).':'Alert browser dimatikan.');
+    state.alertEnabled=e.target.checked;
+    if(!state.alertEnabled){state.earlyEnabled=false;byId('earlySwitch').checked=false;}
+    persistSettings();toast(state.alertEnabled?'Alert browser aktif (selagi laman terbuka).':'Alert browser dimatikan.');
+  });
+  byId('earlySwitch').addEventListener('change',e=>{
+    if(e.target.checked&&!state.alertEnabled){e.target.checked=false;toast('Aktifkan Alert browser dahulu untuk Early WATCH.',true);return;}
+    state.earlyEnabled=e.target.checked;
+    // Baseline existing early conditions rather than triggering historical notifications.
+    state.previousEarly=new Map(earlyCandidates(state.rows).map(r=>[r.symbol,true]));
+    persistSettings();toast(state.earlyEnabled?'Early WATCH alert aktif — bukan signal BUY.':'Early WATCH alert dimatikan.');
   });
   if(settings.sound===true){state.sound=true;byId('soundButton').textContent='♫ Bunyi ON';byId('soundButton').setAttribute('aria-pressed','true');}
   if(settings.alertEnabled&&'Notification' in window&&Notification.permission==='granted'&&window.isSecureContext){state.alertEnabled=true;byId('alertSwitch').checked=true;}
+  if(state.alertEnabled && settings.earlyEnabled===true){state.earlyEnabled=true;byId('earlySwitch').checked=true;}
+  for(const id of ['calcEntry','calcBudget','calcFee','calcSlippage','calcTarget','calcStop'])byId(id).addEventListener('input',recalculate);
+  byId('resetEntry').addEventListener('click',()=>{const r=state.rows.find(x=>x.symbol===state.modalSymbol);if(!r)return;byId('calcEntry').value=String(Number((r.ask||r.price).toPrecision(10)));recalculate();});
   for(const btn of document.querySelectorAll('.tab'))btn.addEventListener('click',()=>{
     state.filter=btn.dataset.filter;state.shown=50;document.querySelectorAll('.tab').forEach(el=>el.classList.toggle('active',el===btn));render();
   });
@@ -193,7 +240,11 @@ function leaderElement(row, position){
   const facts=node('span','',`24j ${currency(row.volume)} · Spread ${row.spread.toFixed(3)}%`);
   const score=node('span','leader-score',`${row.score}/100`);
   foot.append(facts,score);
-  btn.append(top,heading,momentum,foot);
+  const accel=window.RadarAcceleration?.metrics(row);
+  const trend=node('div','leader-accel');
+  trend.append(node('span','',`1m ${percent(row.m1)} · Pecutan 5m ${accel?(accel.delta>=0?'+':'')+accel.delta.toFixed(2)+' pp':'—'}`));
+  if(window.RadarAcceleration?.nearBuy(row,cfg))trend.append(node('span','early-flag','⚡ EARLY WATCH'));
+  btn.append(top,heading,momentum,trend,foot);
   return btn;
 }
 function renderLeaders(){
@@ -206,7 +257,7 @@ function renderLeaders(){
   byId('leadersFresh').textContent=data?.mock?'DEMO • BUKAN DATA SEBENAR':fresh?'● Data LIVE / dikemas kini setiap 20s':'● Menunggu data segar';
   const picked=window.RadarTop10?.choose(state.rows,cfg) || {leaders:[],total:0};
   byId('leadersCount').textContent=`${picked.leaders.length}/10`;
-  summary.textContent=`${picked.total} pair melepasi saringan`;
+  summary.textContent=`${picked.total} pair layak · ${picked.leaders.filter(r=>window.RadarAcceleration?.nearBuy(r,cfg)).length} hampir BUY`; 
   // Never present stale snapshot as a live shortlist.
   if(!fresh){grid.replaceChildren(node('div','leaders-empty','Belum ada data segar. Tunggu API KuCoin atau refresh halaman.'));return;}
   if(!picked.leaders.length){
@@ -224,7 +275,7 @@ function renderAlerts(){
   const list=byId('recentAlerts');
   if(!combined.length){list.replaceChildren(node('div','no-alert','Belum ada signal BUY untuk dipaparkan.'));return;}
   const frag=document.createDocumentFragment();
-  for(const item of combined){const entry=node('div','alert-item');const label=node('span');label.append(node('strong','',item.symbol+' • BUY'),node('span','',`  15m ${percent(item.m15)}`));entry.append(label,node('time','',timeText(item.at)));frag.append(entry);}
+  for(const item of combined){const entry=node('div','alert-item');const label=node('span');label.append(node('strong','',item.symbol+' • '+(item.type==='EARLY'?'EARLY WATCH':'BUY')),node('span','',`  15m ${percent(item.m15)}`));entry.append(label,node('time','',timeText(item.at)));frag.append(entry);}
   list.replaceChildren(frag);
 }
 function render(){
@@ -249,6 +300,21 @@ function render(){
   byId('tgChip').textContent=data.telegramEnabled?'TELEGRAM ON':'BROWSER';
   renderLeaders();renderRows();renderAlerts();
 }
+function recalculate(){
+  const value=id=>Number(byId(id).value);
+  const r=window.RadarPlanner?.calculate({entry:value('calcEntry'),budget:value('calcBudget'),fee:value('calcFee'),slippage:value('calcSlippage'),target:value('calcTarget'),stop:value('calcStop')});
+  const entries=['detailTP','detailSL','calcQty','calcEffEntry','calcNetTP','calcNetSL','calcBreakEven','calcRR'];
+  if(!r){for(const id of entries)byId(id).textContent='—';byId('calcMessage').textContent='Masukkan nombor positif yang sah. Fee/slippage 0–5%.';return;}
+  byId('detailTP').textContent=price(r.tp)+' USDT';byId('detailSL').textContent=price(r.sl)+' USDT';
+  byId('calcQty').textContent=r.quantity.toLocaleString('en-US',{maximumSignificantDigits:9});
+  byId('calcEffEntry').textContent=price(r.effectiveEntry)+' USDT';
+  byId('calcNetTP').textContent=`${currencyExact(r.netTP)} (${percent(r.netTPPercent)})`;
+  byId('calcNetSL').textContent=`${currencyExact(r.netSL)} (${percent(r.netSLPercent)})`;
+  byId('calcBreakEven').textContent=price(r.breakEven)+' USDT';
+  byId('calcRR').textContent=r.rr===null?'—':`1 : ${r.rr.toFixed(2)}`;
+  byId('calcMessage').textContent='Anggaran selepas fee/slippage dua hala, tanpa mengambil kira depth order book, spread masa keluar atau gap harga.';
+}
+function currencyExact(v){return (v<0?'−':'')+'$'+Math.abs(v).toLocaleString('en-US',{maximumFractionDigits:2,minimumFractionDigits:2});}
 async function openDetail(symbol){
   const row=state.rows.find(r=>r.symbol===symbol);if(!row)return;
   state.modalSymbol=symbol;
@@ -258,8 +324,13 @@ async function openDetail(symbol){
   for(const [name,value] of [['detailM5',row.m5],['detailM15',row.m15],['detailM30',row.m30]]){
     const el=byId(name);el.textContent=percent(value);el.className=num(value)===null?'move-neutral':value>=0?'move-up':'move-down';
   }
+  const accel=window.RadarAcceleration?.metrics(row);
+  byId('detailM1').textContent=percent(row.m1);
+  byId('detailAccel').textContent=accel?(accel.delta>=0?'+':'')+accel.delta.toFixed(2)+' pp':'—';
+  byId('detailEarly').textContent=window.RadarAcceleration?.nearBuy(row,cfg)?'⚡ EARLY WATCH • BELUM BUY':'Semak momentum & penapis sebelum entry';
   byId('detailSpread').textContent=num(row.spread)===null?'—':row.spread.toFixed(3)+'%';
-  byId('detailTP').textContent=price(row.price*1.035)+' USDT';byId('detailSL').textContent=price(row.price*.988)+' USDT';
+  byId('calcEntry').value=String(Number((row.ask||row.price).toPrecision(10)));
+  recalculate();
   byId('openKucoin').href=`https://www.kucoin.com/trade/${encodeURIComponent(row.symbol)}`;
   byId('openTradingview').href=`https://www.tradingview.com/chart/?symbol=${encodeURIComponent('KUCOIN:'+row.symbol.replace('-',''))}`;
   byId('detailChart').replaceChildren();byId('chartInfo').textContent='Memuatkan sejarah harga...';
