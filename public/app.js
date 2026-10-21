@@ -40,12 +40,9 @@ function scoreOf(r){
   return Math.round(Math.max(0,Math.min(100,base+shortTerm)));
 }
 function assess(r){
-  if([r.m5,r.m15,r.m30,r.spread].some(v=>num(v)===null))return 'DATA';
-  if(r.volume<cfg.minVolume||r.spread>cfg.maxSpread)return 'AVOID';
-  if(r.m15>=cfg.buy15&&r.m30>=cfg.buy30&&r.m5>=cfg.buy5&&r.m15>(r.m30-r.m15)+.05)return 'BUY';
-  if(r.m15>=cfg.watch15&&r.m30>=cfg.watch30&&r.m5>-.2)return 'WATCH';
-  return 'AVOID';
+  return window.RadarEntryQuality.evaluate(r,cfg).status;
 }
+
 function toast(message,error=false){
   const el=document.createElement('div');el.className=`toast${error?' error':''}`;el.textContent=message;byId('toastArea').append(el);
   setTimeout(()=>el.remove(),5000);
@@ -68,7 +65,7 @@ function alertSound(){
 function browserAlert(r){
   state.localAlerts.unshift({symbol:r.symbol,at:Date.now(),price:r.price,m15:r.m15,m30:r.m30});
   state.localAlerts=state.localAlerts.slice(0,20);
-  toast(`BUY signal: ${r.symbol} • 15m ${percent(r.m15)} • ${price(r.price)} USDT`);
+  toast(`BUY disahkan (bukan jaminan): ${r.symbol} • breakout + RVOL • ${price(r.price)} USDT`);
   if(state.sound)alertSound();
   if(state.alertEnabled&&'Notification' in window&&Notification.permission==='granted'){
     try { const note=new Notification(`KuCoin Radar • ${r.symbol} BUY`,{body:`15m ${percent(r.m15)} | 30m ${percent(r.m30)} | USDT ${price(r.price)}. Semak sebelum trade.`,icon:'/icon.svg',tag:`signal-${r.symbol}`});note.onclick=()=>{window.focus();openDetail(r.symbol);note.close();};}catch{}
@@ -215,7 +212,7 @@ function initializeControls(){
   byId('clock').textContent=timeText(Date.now());
 }
 function recompute(allowAlert=true){
-  state.rows=(state.latest?.rows||[]).map(r=>({...r,status:assess(r),score:scoreOf(r)}));
+  state.rows=(state.latest?.rows||[]).map(r=>({...r,status:assess(r),entryQuality:window.RadarEntryQuality.evaluate(r,cfg),score:scoreOf(r)}));
   if(allowAlert && state.latest?.updatedAt && Date.now()-state.latest.updatedAt<90000 && !state.latest?.error) handleSignals(state.rows);
   else for(const r of state.rows) state.previous.set(r.symbol,r.status);
   render();
@@ -410,7 +407,7 @@ async function openDetail(symbol){
   byId('detailAccel').textContent=accel?(accel.delta>=0?'+':'')+accel.delta.toFixed(2)+' pp':'—';
   const bo=row.breakout||{};
   byId('detailBreakout').textContent=bo.coverage==='READY'?`Breakout: ${bo.signal||'NONE'} • RVOL 1m ${bo.rvol1?.toFixed(2)||'—'}× • RVOL 5m ${bo.rvol5?.toFixed(2)||'—'}× • High 1m ${bo.level1===null?'—':price(bo.level1)}`:`Breakout: ${bo.coverage||'DATA'} — OHLCV belum lengkap / belum dipantau`;
-  byId('detailEarly').textContent=window.RadarAcceleration?.nearBuy(row,cfg)?'⚡ EARLY WATCH • BELUM BUY':'Semak momentum & penapis sebelum entry';
+  byId('detailEarly').textContent=(row.entryQuality?.reason||'Semak momentum & penapis sebelum entry')+(row.status==='BUY'?' • Had pemerhatian 30 minit':'');
   byId('detailSpread').textContent=num(row.spread)===null?'—':row.spread.toFixed(3)+'%';
   byId('calcEntry').value=String(Number((row.ask||row.price).toPrecision(10)));
   recalculate();

@@ -13,3 +13,17 @@ test('reject malformed backup and keep existing records',()=>{const t=J.create(s
 test('JSON merge deduplicates by ID',()=>{const t=J.create(sample,id);const merged=J.merge([t],[{...t,note:'changed'}]);assert.equal(merged.length,1);assert.equal(merged[0].note,'changed');});
 test('CSV has expected columns and formula injection escaped in notes',()=>{const t=J.create({...sample,note:'=HYPERLINK("http://bad")'},id);const csv=J.csv([t]);assert.match(csv,/pnlUSDT/);assert.match(csv,/\'=HYPERLINK/);});
 test('input validation rejects spot short/invalid/missing info',()=>{assert.equal(J.create({...sample,entry:-2},id),null);assert.equal(J.create({...sample,feePct:99},id),null);assert.equal(J.create({...sample,mode:'SHORT'},id),null);});
+test('TP within 30 minutes tracked separately from ordinary win rate',()=>{
+ const t=J.create(sample,'jtrade30a');
+ const quick=J.close(t,103.5,'TP','2026-10-20T03:25:00.000Z');
+ const slow=J.close(J.create(sample,'jtrade30b'),103.5,'TP','2026-10-20T04:00:00.000Z');
+ const stats=J.stats([quick,slow],'REAL');
+ assert.equal(stats.wins,2);
+ assert.equal(stats.tp30,1);
+ assert.equal(stats.tp30Pct,50);
+});
+test('expired OPEN paper trades are flagged but not auto-closed or counted as losses',()=>{
+ const old=J.create({...sample,mode:'PAPER'},'jtrade30c');
+ const s=J.stats([old],'PAPER');
+ assert.equal(s.open,1);assert.equal(s.overdue,1);assert.equal(s.closed,0);assert.equal(s.winRate,null);
+});

@@ -47,7 +47,9 @@
     const wins=done.filter(t=>pnl(t,t.exit).pnl>0.00000001).length;
     const losses=done.filter(t=>pnl(t,t.exit).pnl< -0.00000001).length;
     const even=done.length-wins-losses;
-    return {open:list.length-done.length,closed:done.length,wins,losses,even,winRate:done.length?wins/done.length*100:null,net};
+    const tp30=done.filter(t=>t.reason==='TP' && t.exit>=t.tp && (Date.parse(t.closedAt)-Date.parse(t.openedAt))<=30*60_000).length;
+    const overdue=list.filter(t=>t.status==='OPEN' && Date.now()-Date.parse(t.openedAt)>30*60_000).length;
+    return {open:list.length-done.length,closed:done.length,wins,losses,even,winRate:done.length?wins/done.length*100:null,net,tp30,overdue,tp30Pct:done.length?tp30/done.length*100:null};
   }
   function safeCsvCell(v){
     let val=String(v??'');

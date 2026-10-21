@@ -78,3 +78,6 @@
 .journal-submit:hover,.journal-detail-track:hover{background:#12b58a}
 @media(max-width:1020px){.journal-summary{grid-template-columns:repeat(3,minmax(0,1fr))}.journal-position-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:700px){.journal-position-grid{grid-template-columns:1fr}.journal-heading{align-items:flex-start}.journal-save-note{text-align:left}.journal-summary{grid-template-columns:repeat(2,minmax(0,1fr))}.journal-summary>div:last-child{grid-column:1/-1}.journal-controls{align-items:stretch}.journal-tools{width:100%}.journal-form-grid{grid-template-columns:1fr}.journal-dialog{padding:14px}.journal-position-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+/* v1.6: flag prolonged positions */
+.journal-hold-duration{font-size:11px;color:#bdd4df;margin-top:9px;font-weight:600}

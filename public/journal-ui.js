@@ -25,7 +25,7 @@ function statsPanel(){const st=core.stats(trades,mode);
   $('journalWinRate').textContent=st.winRate===null?'—':st.winRate.toFixed(1)+'%';
   $('journalNet').textContent=money(st.net);$('journalNet').className='journal-value '+(st.net<0?'move-down':'move-up');
   $('journalModeLabel').textContent=mode==='REAL'?'Trade sebenar (rekod manual)':'Paper trading';
-  $('journalStatInfo').textContent='Win rate = trade untung ÷ semua trade ditutup. Posisi terbuka tidak termasuk. BE dikira dalam jumlah tutup.';
+  $('journalStatInfo').textContent=`${st.overdue} posisi OPEN >30m (perlu semak manual) • TP ≤30m: ${st.tp30}/${st.closed} (${st.tp30Pct===null?'—':st.tp30Pct.toFixed(1)+'%'}) • Win rate hanya trade ditutup; tidak termasuk posisi tersangkut.`;
 }
 function detailRow(t){
   const card=el('article','journal-position');
@@ -40,6 +40,12 @@ function detailRow(t){
     const d=el('div','');d.append(el('small','',label),el('strong',label==='P&L'&&outcome?outcome.pnl<0?'move-down':'move-up':'',val));grid.append(d);
   }
   card.append(grid,el('p','journal-position-foot',estimate));
+  if(t.status==='OPEN'){
+    const held=Math.max(0,Math.floor((Date.now()-Date.parse(t.openedAt))/60000));
+    card.append(el('div','journal-hold-duration',`Tempoh pegangan: ${held} minit / sasaran 30 minit`));
+    if(held>=30) card.append(el('div','journal-flag danger',`MASA MELEBIHI 30 MINIT (${held}m). Semak posisi dan rekod exit mengikut pelan risiko. Tiada auto-close atau order KuCoin.`));
+  }
+
   if(t.status==='OPEN'&&mark!==null){
     if(isMock)card.append(el('div','journal-caution','DATA DEMO — bukan harga pasaran sebenar'));
     else if(mark>=t.tp)card.append(el('div','journal-flag profit','Harga rujukan ≥ TP — semak order sebenar di KuCoin'));

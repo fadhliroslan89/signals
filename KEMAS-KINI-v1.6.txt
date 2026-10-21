@@ -1,0 +1,19 @@
+KUCOIN RADAR v1.6 — QUALITY GATE / TIME-RISK REVIEW
+
+Masalah v1.5: BUY hanya bergantung pada momentum harga, bukan bukti breakout + RVOL; win rate hanya closed trades.
+Perubahan:
+- BUY memerlukan 1m candle breakout ber-RVOL >=1.8, data <100s, tidak mengejar >0.65% dari high.
+- Momentum 1m/5m/15m/30m dan pecutan 5m positif, turnover >= $10M, spread <=0.12%.
+- Jika belum cukup, coin hanya WATCH/RADAR; tidak menjamin keuntungan.
+- Penanda posisi OPEN melebihi 30 min, dan pengiraan trade TP direkod <=30m.
+- TIDAK menutup posisi, tidak trade auto, tiada auto stop loss.
+- Ambang ini hipotesis untuk diuji paper trading, BUKAN terbukti menaikkan kadar kejayaan.
+- BUY akan lebih jarang dan terhad kepada maksimum 30 coin dengan candle OHLCV terperinci.
+
+PENTING: backup journal JSON di browser sebelum deploy. Jangan buang Local Storage.
+Update GitHub: drag semua kandungan ZIP ini ke root repository signals, overwrite fail dengan path sama, commit.
+Selepas Render status Live, Cmd+Shift+R dan periksa signal BUY dan journal.
+
+Selepas upload: semak Render commit terbaru = Live, cache refresh Cmd+Shift+R.
+Importantly, journal data browser sedia ada kekal jika domain + storage tidak berubah; backup JSON sebelum update.
+Ujian MOCK_KUCOIN=1 hanya demonstrasi; prestasi win rate nyata TIDAK dibuktikan.
