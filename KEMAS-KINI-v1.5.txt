@@ -1,0 +1,39 @@
+KUCOIN RADAR v1.5 — TRADING JOURNAL + WIN/LOSS TRACKER
+========================================================
+
+1. Extract fail KuCoin_Radar_v1_5_Journal_GitHub_Update.zip
+2. Buka https://github.com/fadhliroslan89/signals
+3. Pilih Add file -> Upload files.
+4. Drag SEMUA kandungan ZIP di dalam folder update (JANGAN drag ZIP itu sendiri).
+5. Pastikan fail ini berada pada path yang tepat:
+   public/index.html
+   public/app.js
+   public/styles.css
+   public/journal-core.js       (fail baharu)
+   public/journal-ui.js         (fail baharu)
+   package.json
+   test/journal.test.js         (fail ujian, pilihan tetapi dicadangkan)
+6. Tekan Commit changes.
+7. Tunggu Render > Deploys status Live, kemudian Cmd+Shift+R di MacBook.
+8. Pada panel Top 10 Momentum atau Breakout Hunter, tekan + Pantau Trade.
+9. Pilih PAPER (demo) atau REAL (rekod trade yang memang dibuat sendiri).
+10. Masukkan entry, modal, fee, TP, SL dan nota. Tekan Simpan Posisi.
+11. Journal memaparkan anggaran untung/rugi posisi OPEN dengan harga BID KuCoin.
+12. Setelah keluar posisi di KuCoin, tekan Tutup / Rekod Exit dan catat harga sebenar.
+13. Statistik win/lose dan net P&L akan dikira daripada posisi CLOSED sahaja.
+
+PENTING:
+- Website ini TIDAK membuat pembelian atau jualan di KuCoin.
+- REAL dan PAPER dikira dan dipaparkan berasingan.
+- Rekod disimpan dalam localStorage di browser PERANTI INI SAHAJA.
+- Tiada penyegerakan automatik MacBook <-> telefon.
+- Guna Backup JSON dan Import JSON untuk pindah rekod ke browser lain.
+- CSV sesuai untuk analisis tambahan di Excel/Google Sheets.
+- Jangan padam browser data sebelum buat backup. Jangan guna incognito.
+- Harga BID dan TP/SL cuma rujukan. Tiada auto-close order sebenar.
+- Fee per sisi ialah anggaran input pengguna dan boleh berbeza dengan caj KuCoin sebenar.
+- Stat bukan laporan rasmi KuCoin; ketepatan bergantung kepada rekod manual.
+- Server Render Free boleh sleep; rekod localStorage kekal di browser selagi tidak dipadam.
+
+UJIAN:
+- `npm test` dalam folder utama (Node.js >= 20).

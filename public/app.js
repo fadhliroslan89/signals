@@ -201,13 +201,15 @@ function initializeControls(){
   byId('closeDetail').addEventListener('click',closeDetail);
   byId('detailBackdrop').addEventListener('click',e=>{if(e.target===byId('detailBackdrop'))closeDetail();});
   window.addEventListener('keydown',e=>{if(e.key==='Escape')closeDetail();});
-  byId('hunterCards').addEventListener('click',e=>{const detail=e.target.closest('button[data-detail]');if(detail)openDetail(detail.dataset.detail);});
-  byId('leaderCards').addEventListener('click',e=>{const detail=e.target.closest('button[data-detail]');if(detail)openDetail(detail.dataset.detail);});
+  byId('hunterCards').addEventListener('click',e=>{const track=e.target.closest('button[data-track]');if(track){trackTrade(track.dataset.track,'BREAKOUT');return;}const detail=e.target.closest('button[data-detail]');if(detail)openDetail(detail.dataset.detail);});
+  byId('leaderCards').addEventListener('click',e=>{const track=e.target.closest('button[data-track]');if(track){trackTrade(track.dataset.track,'MOMENTUM');return;}const detail=e.target.closest('button[data-detail]');if(detail)openDetail(detail.dataset.detail);});
   byId('radarRows').addEventListener('click',e=>{
     const fav=e.target.closest('button[data-favorite]');
     if(fav){const sym=fav.dataset.favorite;if(favorites.has(sym))favorites.delete(sym);else favorites.add(sym);localStorage.setItem(FAVORITES_KEY,JSON.stringify([...favorites]));render();return;}
     const detail=e.target.closest('button[data-detail]');if(detail)openDetail(detail.dataset.detail);
   });
+  byId('detailTrackTrade').addEventListener('click',()=>{if(state.modalSymbol){const r=state.rows.find(x=>x.symbol===state.modalSymbol);closeDetail();window.RadarJournalUI?.openTrade(r,'DETAIL');}});
+  window.RadarJournalUI?.init();
   byId('year').textContent=String(new Date().getFullYear());
   setInterval(()=>byId('clock').textContent=timeText(Date.now()),1000);
   byId('clock').textContent=timeText(Date.now());
@@ -291,8 +293,10 @@ function leaderElement(row, position){
   trend.append(node('span','',`1m ${percent(row.m1)} · Pecutan 5m ${accel?(accel.delta>=0?'+':'')+accel.delta.toFixed(2)+' pp':'—'}`));
   if(window.RadarAcceleration?.nearBuy(row,cfg))trend.append(node('span','early-flag','⚡ EARLY WATCH'));
   btn.append(top,heading,momentum,trend,foot);
-  return btn;
+  const wrap=node('div','tracking-tile');const track=node('button','track-action','+ Pantau Trade');track.type='button';track.dataset.track=row.symbol;track.title='Rekod trade secara manual dalam browser; tiada order KuCoin';wrap.append(btn,track);
+  return wrap;
 }
+function trackTrade(symbol,source){const row=state.rows.find(r=>r.symbol===symbol);if(row)window.RadarJournalUI?.openTrade(row,source);}
 function renderLeaders(){
   const data=state.latest;
   const grid=byId('leaderCards');
@@ -323,7 +327,7 @@ function hunterCard(r){
   const stats=[['RVOL 1m',b.rvol1===null?'—':b.rvol1.toFixed(2)+'×'],['RVOL 5m',b.rvol5===null?'—':b.rvol5.toFixed(2)+'×'],['Jarak high 1m',b.distance1===null?'—':(b.distance1>=0?'+':'')+b.distance1.toFixed(2)+'%'],['Skor',b.rank+'/100']];
   for(const [label,val] of stats){const d=node('div');d.append(node('small','',label),node('b','',val));meter.append(d);}
   const foot=node('div','hunter-foot',`Harga ${price(r.price)} USDT · Spread ${r.spread.toFixed(3)}% · ${r.status}`);
-  btn.append(header,meter,foot);return btn;
+  btn.append(header,meter,foot);const wrap=node('div','tracking-tile');const track=node('button','track-action','+ Pantau Trade');track.type='button';track.dataset.track=r.symbol;wrap.append(btn,track);return wrap;
 }
 function renderHunter(){
   const latest=state.latest||{},h=latest.hunter||{};
@@ -375,6 +379,7 @@ function render(){
   bootNote.textContent=data.mock?'MOD DEMO: Ini data ujian, BUKAN harga KuCoin semasa. Matikan MOCK_KUCOIN untuk live.':pending?`Sejarah 1-minit sedang disediakan: ${done}/${total} pair (${Math.round(done/total*100)}%). Pair belum selesai akan ditanda DATA. Kegagalan: ${boot.failures||0}.`:'Menunggu data pasaran KuCoin...';
   byId('tgChip').textContent=data.telegramEnabled?'TELEGRAM ON':'BROWSER';
   renderLeaders();renderHunter();renderRows();renderAlerts();
+  window.RadarJournalUI?.updateMarket(state.rows,{updatedAt:data.updatedAt,mock:data.mock,error:data.error});
 }
 function recalculate(){
   const value=id=>Number(byId(id).value);
