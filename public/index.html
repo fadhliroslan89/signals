@@ -4,12 +4,13 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="theme-color" content="#071322" />
-  <meta name="description" content="KuCoin Spot USDT market radar: momentum 5m/15m/30m, liquidity, bid-ask spread, alert." />
+  <meta name="description" content="KuCoin Spot USDT scanner: top 10 momentum, 5m/15m/30m, liquidity, spread, alert." />
   <title>KuCoin Scalping Radar — USDT Spot</title>
   <link rel="icon" type="image/svg+xml" href="/icon.svg" />
   <link rel="manifest" href="/manifest.webmanifest" />
-  <link rel="stylesheet" href="/styles.css" />
-  <script src="/app.js" defer></script>
+  <link rel="stylesheet" href="/styles.css?v=1.2" />
+  <script src="/top10.js?v=1.2" defer></script>
+  <script src="/app.js?v=1.2" defer></script>
 </head>
 <body>
   <div class="page">
@@ -50,6 +51,22 @@
         <div class="metric"><div class="metric-label">DATA TERKINI <span class="muted-icon">◷</span></div><div class="metric-value smaller" id="lastUpdate">—</div><div class="metric-desc" id="warmupInfo">Menyediakan data...</div></div>
       </section>
 
+      <!-- Independent ranking: helps select coins to inspect, never relaxes BUY filters. -->
+      <section class="leaders-section" aria-labelledby="leadersTitle">
+        <div class="section-head leaders-head">
+          <div><div class="eyebrow dim">MOMENTUM SHORTLIST / KUCOIN USDT</div><h2 id="leadersTitle">Top 10 Coin Momentum <span class="subnum" id="leadersCount">0/10</span></h2><p class="leaders-subtitle">Coin yang lepas tapisan kecairan, spread dan arah harga. Tidak perlu ada signal BUY untuk masuk ranking.</p></div>
+          <div class="leaders-fresh" id="leadersFresh">Menunggu data LIVE...</div>
+        </div>
+        <div class="leaders-panel">
+          <div class="leaders-toolbar">
+            <span id="leadersCriteria">Volume ≥ $5M • Spread ≤ 0.30% • Momentum 15m dan 30m positif</span>
+            <span id="leadersEligible">Menyaring pair...</span>
+          </div>
+          <div class="leaders-grid" id="leaderCards" aria-live="polite"><div class="leaders-empty">Menunggu sejarah harga KuCoin...</div></div>
+          <div class="leaders-footer"><span><b>BUY</b> = signal lengkap. <b>WATCH</b> = penapis awal. <b>RADAR</b> = layak dipantau, <strong>bukan signal beli.</strong></span><span>Skor 0–100 ialah skor saringan, bukan kebarangkalian untung.</span></div>
+        </div>
+      </section>
+
       <div class="section-head"><div><div class="eyebrow dim">REAL-TIME OPPORTUNITIES</div><h2>Market Radar <span id="resultNum" class="subnum">0</span></h2></div><div class="header-controls"><label class="switch-row" for="alertSwitch"><input type="checkbox" id="alertSwitch"/><span class="switch"></span><span>Alert browser</span></label><button id="soundButton" class="secondary-button" aria-pressed="false">♫ Bunyi OFF</button></div></div>
       <section class="radar-panel">
         <div class="toolbar">
@@ -88,7 +105,7 @@
       </section>
       <div class="disclaimer">Radar menggunakan data awam KuCoin. Pengiraan 5m/15m/30m menggunakan harga semasa berbanding sejarah 1-minit; bukan ramalan keuntungan. Tiada transaksi dilaksanakan dan tiada API key trading diperlukan. Semak semua data sebelum trade.</div>
     </main>
-    <footer><span>KUCOIN<span class="accent">RADAR</span> <span class="footer-minor">— Independent spot scanner. Not affiliated with KuCoin.</span></span><span>© <span id="year">2026</span> • v1.0</span></footer>
+    <footer><span>KUCOIN<span class="accent">RADAR</span> <span class="footer-minor">— Independent spot scanner. Not affiliated with KuCoin.</span></span><span>© <span id="year">2026</span> • v1.2</span></footer>
   </div>
   <div id="toastArea" class="toast-area" aria-live="polite"></div>
   <div id="detailBackdrop" class="modal-backdrop hidden" role="presentation"><div class="detail-modal" role="dialog" aria-modal="true" aria-labelledby="detailTitle">

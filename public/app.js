@@ -109,6 +109,7 @@ function initializeControls(){
   byId('closeDetail').addEventListener('click',closeDetail);
   byId('detailBackdrop').addEventListener('click',e=>{if(e.target===byId('detailBackdrop'))closeDetail();});
   window.addEventListener('keydown',e=>{if(e.key==='Escape')closeDetail();});
+  byId('leaderCards').addEventListener('click',e=>{const detail=e.target.closest('button[data-detail]');if(detail)openDetail(detail.dataset.detail);});
   byId('radarRows').addEventListener('click',e=>{
     const fav=e.target.closest('button[data-favorite]');
     if(fav){const sym=fav.dataset.favorite;if(favorites.has(sym))favorites.delete(sym);else favorites.add(sym);localStorage.setItem(FAVORITES_KEY,JSON.stringify([...favorites]));render();return;}
@@ -172,6 +173,51 @@ function renderRows(){
   byId('shownCount').textContent=`Paparan ${showing.length}/${rows.length} coin`;
   byId('loadMoreWrap').classList.toggle('hidden',showing.length>=rows.length);
 }
+function leaderElement(row, position){
+  const btn=node('button','leader-card'+(position<3?' featured':''));
+  btn.type='button';btn.dataset.detail=row.symbol;
+  btn.setAttribute('aria-label',`Lihat ${row.symbol}, skor ${row.score}, momentum 15 minit ${percent(row.m15)}. Bukan arahan beli.`);
+  const top=node('div','leader-card-top');
+  top.append(node('span','leader-position',`#${position+1}`));
+  const type=row.status==='BUY'?'BUY':row.status==='WATCH'?'WATCH':'RADAR';
+  top.append(node('span','pill leader-signal '+type.toLowerCase(),type));
+  const name=node('div','leader-coin');
+  name.append(node('span','leader-token',row.symbol.split('-')[0].slice(0,4)),node('span','leader-symbol',row.symbol.replace('-USDT','')));
+  const heading=node('div','leader-main');
+  heading.append(name,node('span','leader-price',price(row.price)+' USDT'));
+  const momentum=node('div','leader-moments');
+  for(const [label,v] of [['5m',row.m5],['15m',row.m15],['30m',row.m30]]){
+    const el=node('div','leader-moment');el.append(node('small','',label),pCell(v));momentum.append(el);
+  }
+  const foot=node('div','leader-bottom');
+  const facts=node('span','',`24j ${currency(row.volume)} · Spread ${row.spread.toFixed(3)}%`);
+  const score=node('span','leader-score',`${row.score}/100`);
+  foot.append(facts,score);
+  btn.append(top,heading,momentum,foot);
+  return btn;
+}
+function renderLeaders(){
+  const data=state.latest;
+  const grid=byId('leaderCards');
+  const updated=data?.updatedAt||0;
+  const fresh=updated>0 && Date.now()-updated<90_000 && !data.error;
+  const summary=byId('leadersEligible');
+  byId('leadersCriteria').textContent=`Volume ≥ ${currency(cfg.minVolume)} • Spread ≤ ${cfg.maxSpread.toFixed(2)}% • Momentum 15m/30m positif`;
+  byId('leadersFresh').textContent=data?.mock?'DEMO • BUKAN DATA SEBENAR':fresh?'● Data LIVE / dikemas kini setiap 20s':'● Menunggu data segar';
+  const picked=window.RadarTop10?.choose(state.rows,cfg) || {leaders:[],total:0};
+  byId('leadersCount').textContent=`${picked.leaders.length}/10`;
+  summary.textContent=`${picked.total} pair melepasi saringan`;
+  // Never present stale snapshot as a live shortlist.
+  if(!fresh){grid.replaceChildren(node('div','leaders-empty','Belum ada data segar. Tunggu API KuCoin atau refresh halaman.'));return;}
+  if(!picked.leaders.length){
+    const done=data.bootstrap?.done||0,total=data.bootstrap?.total||0;
+    const msg=total && done<total
+      ?`Sedang menyediakan sejarah coin (${done}/${total}). Belum ada coin lulus tapisan. Ranking muncul apabila data mencukupi.`
+      :'Tiada coin memenuhi penapis volume, spread dan momentum sekarang. Cuba tunggu keadaan pasaran berubah atau ubah filter di Market Radar.';
+    grid.replaceChildren(node('div','leaders-empty',msg));return;
+  }
+  grid.replaceChildren(...picked.leaders.map((row,index)=>leaderElement(row,index)));
+}
 function renderAlerts(){
   const server=state.latest?.alerts||[];
   const combined=[...state.localAlerts,...server].sort((a,b)=>b.at-a.at).filter((a,i,arr)=>arr.findIndex(x=>x.symbol===a.symbol&&Math.abs(x.at-a.at)<1000)===i).slice(0,7);
@@ -201,7 +247,7 @@ function render(){
   bootNote.classList.toggle('hidden',!pending&&!data.mock&&!!data.updatedAt);
   bootNote.textContent=data.mock?'MOD DEMO: Ini data ujian, BUKAN harga KuCoin semasa. Matikan MOCK_KUCOIN untuk live.':pending?`Sejarah 1-minit sedang disediakan: ${done}/${total} pair (${Math.round(done/total*100)}%). Pair belum selesai akan ditanda DATA. Kegagalan: ${boot.failures||0}.`:'Menunggu data pasaran KuCoin...';
   byId('tgChip').textContent=data.telegramEnabled?'TELEGRAM ON':'BROWSER';
-  renderRows();renderAlerts();
+  renderLeaders();renderRows();renderAlerts();
 }
 async function openDetail(symbol){
   const row=state.rows.find(r=>r.symbol===symbol);if(!row)return;
