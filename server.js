@@ -8,6 +8,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { URL } = require('node:url');
 const { DEFAULTS, rowFromTicker, number } = require('./lib/scanner');
+const { candlesFromKucoin, analyze: breakoutAnalyze } = require('./lib/breakout');
 const PORT = Number(process.env.PORT || 3000);
 const HOST = process.env.HOST || '0.0.0.0';
 const MOCK = process.env.MOCK_KUCOIN === '1';
@@ -16,6 +17,8 @@ const POLL_MS = 20_000;
 const HISTORY_MINUTES = 48;
 const BOOTSTRAP_SPACING_MS = 360; // ~2.8 candle requests/sec; do not hammer the public API.
 const publicDir = path.join(__dirname, 'public');
+const HUNTER_LIMIT = 30;
+const HUNTER_REFRESH_MS = 75_000;
 const TELEGRAM_TOKEN = process.env.TELEGRAM_BOT_TOKEN || '';
 const TELEGRAM_CHAT = process.env.TELEGRAM_CHAT_ID || '';
 const telegramEnabled = !!(TELEGRAM_TOKEN && TELEGRAM_CHAT) && !MOCK;
@@ -24,6 +27,11 @@ const state = {
   allowed: new Set(),
   tickers: new Map(),
   histories: new Map(),
+  candles: new Map(),
+  hunterWatched: new Set(),
+  hunterLastRefresh: 0,
+  hunterFailures: 0,
+  hunterSyncing: false,
   rows: [],
   lastUpdate: 0,
   symbolsUpdated: 0,
@@ -83,13 +91,60 @@ function appendPrice(symbol, time, price) {
   const oldest = Date.now() - HISTORY_MINUTES * 60_000;
   for (const at of history.keys()) if (at < oldest) history.delete(at);
 }
-function recordCandles(symbol, candles) {
-  for (const c of candles) {
-    if (!Array.isArray(c) || c.length < 3) continue;
-    const at = Number(c[0])*1000 + 60_000; // candle close timestamp
-    if (at > Date.now() || at < Date.now() - HISTORY_MINUTES*60_000) continue;
-    appendPrice(symbol, at, Number(c[2])); // KuCoin classic: [time, open, close, high, low, volume, turnover]
+function recordCandles(symbol, raw) {
+  const now=Date.now();
+  const parsed=candlesFromKucoin(raw,now);
+  let map=state.candles.get(symbol);
+  if(!map){map=new Map();state.candles.set(symbol,map);}
+  for(const bar of parsed){
+    appendPrice(symbol,bar.at,bar.close);
+    map.set(bar.at,bar);
   }
+  for(const at of map.keys()) if(at < now-HISTORY_MINUTES*60_000)map.delete(at);
+}
+function mockCandles(symbol,index,now){
+  const hist=mockHistory(index,now);
+  const closes=[...hist].sort((a,b)=>a[0]-b[0]);
+  const map=new Map();let prev=null;
+  for(const [at,close] of closes){
+    const open=prev||close;
+    map.set(at,{at,open,close,high:Math.max(open,close)*1.0002,low:Math.min(open,close)*0.9998,volume:120+(index%5)*12+(Math.floor(at/60_000)%7)*8});
+    prev=close;
+  }
+  state.candles.set(symbol,map);
+}
+function hunterCandidates(){
+  return [...state.rows]
+    .filter(r=>r.volume>=cfg.minVolume && r.spread!==null && r.spread<=cfg.maxSpread && r.m15!==null)
+    .sort((a,b)=>{
+      const priority=r=>r.score+Math.min(30,Math.max(0,r.m5||0)*28)+Math.min(16,Math.max(0,r.m1||0)*32);
+      return priority(b)-priority(a)||b.volume-a.volume;
+    })
+    .slice(0,HUNTER_LIMIT).map(r=>r.symbol);
+}
+async function refreshHunter(){
+  if(state.hunterSyncing || state.bootstrap.active || !state.allowed.size)return;
+  state.hunterSyncing=true;
+  try{
+    const chosen=hunterCandidates();
+    state.hunterWatched=new Set(chosen);
+    computeRows();
+    for(let i=0;i<chosen.length;i++){
+      const symbol=chosen[i];
+      try{
+        if(MOCK){const index=mockSymbols.findIndex(s=>s.symbol===symbol); if(index>=0)mockCandles(symbol,index,Date.now());}
+        else {
+          const endAt=Math.floor(Date.now()/1000);
+          const candles=await getKucoin(`/api/v1/market/candles?type=1min&symbol=${encodeURIComponent(symbol)}&startAt=${endAt-(HISTORY_MINUTES+2)*60}&endAt=${endAt}`);
+          recordCandles(symbol,candles);
+        }
+      }catch(err){state.hunterFailures++;if(state.hunterFailures<5) console.warn('Hunter candle:',symbol,err.message);if(String(err.message).includes('429'))await pause(5_000);}
+      if(i%5===4)computeRows();
+      await pause(MOCK?1:850);
+    }
+    state.hunterLastRefresh=Date.now();
+    computeRows();
+  } finally {state.hunterSyncing=false;}
 }
 async function queueBootstrap() {
   if (state.bootstrap.active) return;
@@ -104,6 +159,7 @@ async function queueBootstrap() {
     try {
       if (MOCK) {
         state.histories.set(symbol, mockHistory(i, Date.now()));
+        mockCandles(symbol,i,Date.now());
       } else {
         const endAt = Math.floor(Date.now()/1000);
         const startAt = endAt - (HISTORY_MINUTES + 2)*60;
@@ -121,11 +177,16 @@ async function queueBootstrap() {
   }
   state.bootstrap.active = false;
   computeRows();
+  refreshHunter().catch(e=>console.error('Hunter refresh:',e.message));
 }
 function computeRows() {
   const now = Date.now();
   state.rows = [...state.tickers.values()].filter(t => state.allowed.has(t.symbol))
-    .map(t => rowFromTicker(t, state.histories.get(t.symbol), now, cfg)).filter(Boolean)
+    .map(t => {
+      const r=rowFromTicker(t,state.histories.get(t.symbol),now,cfg);
+      if(r)r.breakout=state.hunterWatched.has(r.symbol)?breakoutAnalyze(state.candles.get(r.symbol),now,cfg,r):{signal:'NONE',coverage:'NOT_MONITORED'};
+      return r;
+    }).filter(Boolean)
     .sort((a,b) => b.score - a.score || b.volume - a.volume);
 }
 async function telegram(message) {
@@ -201,6 +262,7 @@ const server = http.createServer((req, res) => {
   if (url.pathname === '/api/status') return json(res,{
     updatedAt:state.lastUpdate, now:Date.now(), pairs:state.allowed.size, fetched:state.rows.length,
     bootstrap:state.bootstrap, error:state.error, mock:MOCK, telegramEnabled, defaults:cfg,
+    hunter:{monitored:state.hunterWatched.size,limit:HUNTER_LIMIT,lastRefreshed:state.hunterLastRefresh,failures:state.hunterFailures},
     alerts:state.alertLog.slice(0,12), rows:state.rows,
   });
   if (url.pathname === '/api/history') {
@@ -216,5 +278,6 @@ server.listen(PORT, HOST, () => {
   console.log(`KuCoin Radar: http://localhost:${PORT}${MOCK?' [DEMO DATA]':''}`);
   poll();
   setInterval(poll, POLL_MS).unref();
+  setInterval(()=>refreshHunter().catch(e=>console.error('Hunter refresh:',e.message)),HUNTER_REFRESH_MS).unref();
 });
 module.exports = { server, state, poll, computeRows };

@@ -1,0 +1,40 @@
+KUCOIN SCALPING RADAR v1.4 — BREAKOUT HUNTER
+=============================================
+
+UPDATE REPOSITORY GitHub: https://github.com/fadhliroslan89/signals
+
+Kandungan ZIP "GitHub_Update":
+- server.js (pungut OHLCV, pilih maksimum 30 coin paling aktif, refresh candle 75s)
+- lib/breakout.js (breakout 1m dan 5m berdasarkan high + volume candle yang tutup)
+- public/index.html (panel Breakout Hunter + suis alert)
+- public/app.js (UI, ranking breakout/SETUP, bunyi/browser alert 15m cooldown)
+- public/styles.css (responsive desktop/mobile)
+- package.json (version v1.4.0)
+- test/breakout.test.js (ujian pengiraan breakout)
+
+Cara pasang:
+1) Extract ZIP.
+2) Buka GitHub repository signals > Add file > Upload files.
+3) Drag semua fail/folder DI DALAM ZIP yang diextract; jangan drag satu folder luar tambahan.
+4) Pastikan laluan "server.js", "lib/breakout.js", "public/app.js", "public/index.html", "public/styles.css", "package.json", "test/breakout.test.js".
+5) Commit changes pada branch main. Render auto-deploy jika Auto-Deploy masih aktif.
+6) Tunggu Render menunjukkan Live, buka website dan refresh Cmd+Shift+R.
+
+Penggunaan:
+- Top 10 Momentum masih mengimbas semua pair spot USDT daripada snapshot KuCoin.
+- Breakout Hunter menyemak secara lebih mendalam maksimum 30 pair dengan volume 24j >= 5 juta USDT dan spread <= 0.30%.
+- 1m: candle 1m telah ditutup atas high 12 candle 1m sebelumnya, dengan RVOL >= 1.8x purata 20 candle sebelumnya.
+- 5m: candle 5m lengkap ditutup atas high 6 candle 5m sebelumnya, dengan RVOL >= 1.4x purata 6 candle sebelumnya.
+- SETUP: harga semasa hampir pada high 1m dengan RVOL >= 1.15x; BELUM BUY.
+- BREAKOUT: signal pengesanan teknikal; BELUM tentu jadi BUY dan tidak boleh menjamin TP 3–4%.
+- Semasa mula restart, sejarah candle bagi semua pair mungkin memerlukan beberapa minit untuk siap; panel Breakout Hunter akan menunggu bootstrap selesai sebelum mula imbasan terpilih.
+- Untuk alert, aktifkan Alert browser terlebih dahulu, kemudian suis 🚀 Breakout. Browser mesti terus terbuka dan website aktif.
+- Render Free boleh spin down semasa tiada pengguna; alert browser bukan 24/7.
+- Kalkulator TP/SL v1.3 kekal.
+
+UJIAN
+npm test
+Dalam versi ini 23 ujian unit lulus. Dashboard desktop dan mobile diuji dalam mod DEMO, bukan harga LIVE KuCoin.
+
+PENTING
+Tiada transaksi beli/jual automatik. Data KuCoin OHLCV melalui endpoint public Klines; volume spike hanya untuk pair yang sedang dipantau secara mendalam dan berdata segar. Prestasi pulangan belum di-backtest. Tiada jaminan mencapai TP 3-4% / 15-30 minit. Jangan gunakan secara langsung dengan modal sebelum diuji.

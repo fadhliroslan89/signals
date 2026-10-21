@@ -5,14 +5,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="theme-color" content="#071322" />
   <meta name="description" content="KuCoin Spot USDT scanner: top 10 momentum, 5m/15m/30m, liquidity, spread, alert." />
-  <title>KuCoin Scalping Radar — USDT Spot</title>
+  <title>KuCoin Scalping Radar v1.4 — USDT Spot</title>
   <link rel="icon" type="image/svg+xml" href="/icon.svg" />
   <link rel="manifest" href="/manifest.webmanifest" />
-  <link rel="stylesheet" href="/styles.css?v=1.3" />
-  <script src="/top10.js?v=1.3" defer></script>
-  <script src="/acceleration.js?v=1.3" defer></script>
-  <script src="/planner.js?v=1.3" defer></script>
-  <script src="/app.js?v=1.3" defer></script>
+  <link rel="stylesheet" href="/styles.css?v=1.4" />
+  <script src="/top10.js?v=1.4" defer></script>
+  <script src="/acceleration.js?v=1.4" defer></script>
+  <script src="/planner.js?v=1.4" defer></script>
+  <script src="/app.js?v=1.4" defer></script>
 </head>
 <body>
   <div class="page">
@@ -69,7 +69,20 @@
         </div>
       </section>
 
-      <div class="section-head"><div><div class="eyebrow dim">REAL-TIME OPPORTUNITIES</div><h2>Market Radar <span id="resultNum" class="subnum">0</span></h2></div><div class="header-controls"><label class="switch-row" for="earlySwitch" title="Amaran awal untuk coin dalam Top 10 yang hampir BUY. Memerlukan Alert browser ON."><input type="checkbox" id="earlySwitch"/><span class="switch"></span><span>⚡ Early WATCH</span></label><label class="switch-row" for="alertSwitch"><input type="checkbox" id="alertSwitch"/><span class="switch"></span><span>Alert browser</span></label><button id="soundButton" class="secondary-button" aria-pressed="false">♫ Bunyi OFF</button></div></div>
+      <!-- v1.4: separate confirmed-candle breakout shortlist. Not a BUY recommendation. -->
+      <section class="hunter-section" aria-labelledby="hunterTitle">
+        <div class="section-head hunter-heading">
+          <div><div class="eyebrow dim">BREAKOUT HUNTER / KUCOIN USDT</div><h2 id="hunterTitle">🚀 Breakout Hunter <span class="subnum" id="hunterCount">0</span></h2><p class="leaders-subtitle">Breakout high 1m/5m daripada candle yang sudah tutup + relative volume. SETUP = hampir breakout, bukan signal BUY.</p></div>
+          <div class="hunter-side"><span class="hunter-live" id="hunterLive">Menunggu data candle...</span><span class="hunter-meta" id="hunterCoverage">Menunggu data</span></div>
+        </div>
+        <div class="hunter-panel">
+          <div class="hunter-toolbar"><span>1m: high 12 candle + RVOL ≥ 1.8× • 5m: high 6 candle + RVOL ≥ 1.4×</span><span id="hunterSignals">Belum ada signal</span></div>
+          <div id="hunterCards" class="hunter-grid" aria-live="polite"><div class="leaders-empty">Sedang menyediakan data candle KuCoin.</div></div>
+          <div class="leaders-footer"><span>BREAKOUT = candle ditutup atas high + lonjakan volume. SETUP = menghampiri high.</span><strong>Imbasan terperinci maksimum 30 pair aktif; bukan 787 pair setiap minit.</strong></div>
+        </div>
+      </section>
+
+      <div class="section-head"><div><div class="eyebrow dim">REAL-TIME OPPORTUNITIES</div><h2>Market Radar <span id="resultNum" class="subnum">0</span></h2></div><div class="header-controls"><label class="switch-row" for="breakoutSwitch" title="Notifikasi breakout candle 1m/5m yang disahkan, sebelum signal BUY jika ada. Perlu Alert browser ON."><input type="checkbox" id="breakoutSwitch"/><span class="switch"></span><span>🚀 Breakout</span></label><label class="switch-row" for="earlySwitch" title="Amaran awal untuk coin dalam Top 10 yang hampir BUY. Memerlukan Alert browser ON."><input type="checkbox" id="earlySwitch"/><span class="switch"></span><span>⚡ Early WATCH</span></label><label class="switch-row" for="alertSwitch"><input type="checkbox" id="alertSwitch"/><span class="switch"></span><span>Alert browser</span></label><button id="soundButton" class="secondary-button" aria-pressed="false">♫ Bunyi OFF</button></div></div>
       <section class="radar-panel">
         <div class="toolbar">
           <div class="filter-tabs" role="group" aria-label="Tapis status">
@@ -107,13 +120,14 @@
       </section>
       <div class="disclaimer">Radar menggunakan data awam KuCoin. Pengiraan 5m/15m/30m menggunakan harga semasa berbanding sejarah 1-minit; bukan ramalan keuntungan. Tiada transaksi dilaksanakan dan tiada API key trading diperlukan. Semak semua data sebelum trade.</div>
     </main>
-    <footer><span>KUCOIN<span class="accent">RADAR</span> <span class="footer-minor">— Independent spot scanner. Not affiliated with KuCoin.</span></span><span>© <span id="year">2026</span> • v1.3</span></footer>
+    <footer><span>KUCOIN<span class="accent">RADAR</span> <span class="footer-minor">— Independent spot scanner. Not affiliated with KuCoin.</span></span><span>© <span id="year">2026</span> • v1.4</span></footer>
   </div>
   <div id="toastArea" class="toast-area" aria-live="polite"></div>
   <div id="detailBackdrop" class="modal-backdrop hidden" role="presentation"><div class="detail-modal" role="dialog" aria-modal="true" aria-labelledby="detailTitle">
     <div class="modal-top"><div><div class="eyebrow">KUCOIN SPOT • USDT</div><h2 id="detailTitle">—</h2></div><button class="modal-close" id="closeDetail" aria-label="Tutup">✕</button></div>
     <div class="modal-price"><div><small>HARGA TERKINI (USDT)</small><strong id="detailPrice">—</strong></div><span id="detailStatus" class="pill">—</span></div>
     <div class="sparkbox"><svg id="detailChart" viewBox="0 0 580 128" preserveAspectRatio="none" aria-label="Graf sejarah harga"></svg><span id="chartInfo">Loading history...</span></div>
+    <div id="detailBreakout" class="detail-early">Breakout: data belum cukup.</div>
     <div id="detailEarly" class="detail-early">Semak momentum & penapis sebelum entry</div>
     <div class="detail-stats"><div><small>MOMENTUM 1m</small><b id="detailM1">—</b></div><div><small>PECUTAN 5m (vs 5m SEBELUMNYA)</small><b id="detailAccel">—</b></div><div><small>MOMENTUM 5m</small><b id="detailM5">—</b></div><div><small>MOMENTUM 15m</small><b id="detailM15">—</b></div><div><small>MOMENTUM 30m</small><b id="detailM30">—</b></div><div><small>SPREAD</small><b id="detailSpread">—</b></div></div>
     <div class="target-levels"><div>TP ilustrasi +3.5% <b id="detailTP">—</b></div><div>SL ilustrasi −1.2% <b id="detailSL">—</b></div></div>
