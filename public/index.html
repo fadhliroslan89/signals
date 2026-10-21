@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="ms">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#071322" />
+  <meta name="description" content="KuCoin Spot USDT market radar: momentum 5m/15m/30m, liquidity, bid-ask spread, alert." />
+  <title>KuCoin Scalping Radar — USDT Spot</title>
+  <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+  <link rel="manifest" href="/manifest.webmanifest" />
+  <link rel="stylesheet" href="/styles.css" />
+  <script src="/app.js" defer></script>
+</head>
+<body>
+  <div class="page">
+    <header class="topbar">
+      <a class="brand" href="/" aria-label="KuCoin Scalping Radar">
+        <span class="brand-icon"><svg viewBox="0 0 32 32" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 22 L11 14 L17 19 L28 7" /><path d="M22 7 H28 V13" /></svg></span>
+        <span><strong>KUCOIN<span class="accent">RADAR</span></strong><small>SCALPING INTELLIGENCE</small></span>
+      </a>
+      <div class="top-actions">
+        <div class="live-pill" id="connection"><i></i><span>Menghubungkan...</span></div>
+        <span class="time-clock" id="clock">--:--:--</span>
+        <button class="icon-btn" id="refresh" title="Kemas kini" aria-label="Kemas kini"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M20 7V3l-4 4H20a9 9 0 1 0 1 8" /></svg></button>
+      </div>
+    </header>
+
+    <main>
+      <section class="hero">
+        <div>
+          <div class="eyebrow"><span class="eyedot"></span> MARKET SCANNER <span class="sep">/</span> KUCOIN SPOT USDT</div>
+          <h1>Cari momentum.<br/><span>Ambil peluang dengan disiplin.</span></h1>
+          <p>Imbas pasangan USDT KuCoin, bandingkan momentum sebenar 15–30 minit, volume dan spread. Signal hanya penapis awal — bukan arahan membeli.</p>
+        </div>
+        <div class="hero-target">
+          <div class="target-top"><span>MATLAMAT SCALPING</span><span class="sparkle">✦</span></div>
+          <div class="target-main">3–4<span>%</span></div>
+          <div class="target-bottom"><span>15–30 MIN</span><span>SPOT • TANPA LEVERAGE</span></div>
+          <div class="target-warning">Target agresif; tiada jaminan dicapai.</div>
+        </div>
+      </section>
+
+      <div class="notice hidden" id="errorNotice" role="status"></div>
+      <div class="notice info" id="bootNotice">Menghubungi KuCoin dan memuatkan sejarah 1 minit bagi setiap coin. Bacaan 15/30 minit mungkin mengambil beberapa minit untuk lengkap.</div>
+
+      <section class="metrics" aria-label="Ringkasan pasaran">
+        <div class="metric"><div class="metric-label">PAIR USDT AKTIF <span class="muted-icon">◈</span></div><div class="metric-value" id="pairCount">—</div><div class="metric-desc" id="loadedCount">Menunggu data</div></div>
+        <div class="metric"><div class="metric-label">BUY SIGNAL <span class="mini-dot green"></span></div><div class="metric-value green-text" id="buyCount">—</div><div class="metric-desc">Lulus semua penapis</div></div>
+        <div class="metric"><div class="metric-label">WATCHLIST <span class="mini-dot yellow"></span></div><div class="metric-value" id="watchCount">—</div><div class="metric-desc">Momentum awal</div></div>
+        <div class="metric"><div class="metric-label">DATA TERKINI <span class="muted-icon">◷</span></div><div class="metric-value smaller" id="lastUpdate">—</div><div class="metric-desc" id="warmupInfo">Menyediakan data...</div></div>
+      </section>
+
+      <div class="section-head"><div><div class="eyebrow dim">REAL-TIME OPPORTUNITIES</div><h2>Market Radar <span id="resultNum" class="subnum">0</span></h2></div><div class="header-controls"><label class="switch-row" for="alertSwitch"><input type="checkbox" id="alertSwitch"/><span class="switch"></span><span>Alert browser</span></label><button id="soundButton" class="secondary-button" aria-pressed="false">♫ Bunyi OFF</button></div></div>
+      <section class="radar-panel">
+        <div class="toolbar">
+          <div class="filter-tabs" role="group" aria-label="Tapis status">
+            <button class="tab active" data-filter="ALL">Semua</button>
+            <button class="tab" data-filter="BUY">BUY <span id="tabBuy">0</span></button>
+            <button class="tab" data-filter="WATCH">WATCH <span id="tabWatch">0</span></button>
+            <button class="tab" data-filter="FAV">★ Favorit</button>
+          </div>
+          <div class="toolbar-right"><label class="search"><span>⌕</span><input id="search" type="search" placeholder="Cari coin... SOL, SUI" autocomplete="off" /></label><select id="sortBy" aria-label="Susun mengikut"><option value="rank">Ranking terbaik</option><option value="m15">Momentum 15m</option><option value="m30">Momentum 30m</option><option value="volume">Volume 24j</option><option value="spread">Spread rendah</option><option value="score">Score tinggi</option></select></div>
+        </div>
+        <div class="filter-strip">
+          <label>Min volume 24j <select id="minVolume"><option value="1000000">$1 juta</option><option value="3000000">$3 juta</option><option value="5000000" selected>$5 juta</option><option value="10000000">$10 juta</option><option value="25000000">$25 juta</option></select></label>
+          <label>Max spread <select id="maxSpread"><option value="0.15">0.15%</option><option value="0.30" selected>0.30%</option><option value="0.50">0.50%</option><option value="1.00">1.00%</option></select></label>
+          <label>Min momentum BUY 15m <select id="minMomentum"><option value="0.70">+0.70%</option><option value="1.10" selected>+1.10%</option><option value="1.50">+1.50%</option><option value="2.00">+2.00%</option></select></label>
+          <span class="filter-info">Data auto refresh setiap 20s</span>
+        </div>
+        <div class="table-scroll">
+          <table class="radar-table" aria-label="Keputusan scanner KuCoin"><thead><tr>
+            <th class="sticky first-col">PAIR / EXCHANGE</th><th>HARGA</th><th>5 MIN</th><th>15 MIN <span class="sort-mark">↕</span></th><th>30 MIN</th><th>VOLUME 24J</th><th>SPREAD</th><th>SCORE</th><th>STATUS</th><th class="last-col">TINDAKAN</th>
+          </tr></thead><tbody id="radarRows"><tr><td colspan="10" class="empty-table"><span class="spinner"></span> Menunggu data KuCoin...</td></tr></tbody></table>
+        </div>
+        <div id="loadMoreWrap" class="load-more-wrap hidden"><button id="loadMore" class="secondary-button">Papar 50 coin lagi ↓</button></div>
+        <div class="panel-footer"><span><span class="mini-dot green"></span> BUY = momentum + spread + volume lulus. <span class="mini-dot yellow"></span> WATCH = potensi awal. DATA = sejarah belum lengkap.</span><span id="shownCount">—</span></div>
+      </section>
+
+      <section class="bottom-grid">
+        <div class="card-info"><div class="card-head"><div><div class="eyebrow dim">WATCH YOUR RISK</div><h3>Pelan scalping</h3></div><span class="info-chip">SPOT</span></div>
+          <div class="risk-grid"><div><small>TAKE PROFIT (CONTOH)</small><b class="green-text">+3.5%</b></div><div><small>STOP LOSS (CONTOH)</small><b class="red-text">−1.2%</b></div><div><small>MASA PEGANG</small><b>15–30 min</b></div><div><small>RISIKO / GANJARAN KASAR</small><b>1 : 2.92</b></div></div>
+          <p class="muted-paragraph">Nombor di atas ialah sasaran perancangan, tidak mengambil kira yuran, slippage, gap dan kebolehlaksanaan order. Hentikan posisi mengikut rancangan risiko sendiri, bukan semata-mata kerana score tinggi.</p>
+        </div>
+        <div class="card-info"><div class="card-head"><div><div class="eyebrow dim">NOTIFICATIONS</div><h3>Alert & aktiviti</h3></div><span class="info-chip" id="tgChip">BROWSER</span></div>
+          <div id="recentAlerts" class="alert-list"><div class="no-alert">Belum ada signal BUY untuk dipaparkan.</div></div>
+          <div class="alert-foot">Alert browser berfungsi semasa laman terbuka (HTTPS/localhost). Alert Telegram pilihan boleh berfungsi 24/7 jika server berjalan.</div>
+        </div>
+      </section>
+      <div class="disclaimer">Radar menggunakan data awam KuCoin. Pengiraan 5m/15m/30m menggunakan harga semasa berbanding sejarah 1-minit; bukan ramalan keuntungan. Tiada transaksi dilaksanakan dan tiada API key trading diperlukan. Semak semua data sebelum trade.</div>
+    </main>
+    <footer><span>KUCOIN<span class="accent">RADAR</span> <span class="footer-minor">— Independent spot scanner. Not affiliated with KuCoin.</span></span><span>© <span id="year">2026</span> • v1.0</span></footer>
+  </div>
+  <div id="toastArea" class="toast-area" aria-live="polite"></div>
+  <div id="detailBackdrop" class="modal-backdrop hidden" role="presentation"><div class="detail-modal" role="dialog" aria-modal="true" aria-labelledby="detailTitle">
+    <div class="modal-top"><div><div class="eyebrow">KUCOIN SPOT • USDT</div><h2 id="detailTitle">—</h2></div><button class="modal-close" id="closeDetail" aria-label="Tutup">✕</button></div>
+    <div class="modal-price"><div><small>HARGA TERKINI (USDT)</small><strong id="detailPrice">—</strong></div><span id="detailStatus" class="pill">—</span></div>
+    <div class="sparkbox"><svg id="detailChart" viewBox="0 0 580 128" preserveAspectRatio="none" aria-label="Graf sejarah harga"></svg><span id="chartInfo">Loading history...</span></div>
+    <div class="detail-stats"><div><small>MOMENTUM 5m</small><b id="detailM5">—</b></div><div><small>MOMENTUM 15m</small><b id="detailM15">—</b></div><div><small>MOMENTUM 30m</small><b id="detailM30">—</b></div><div><small>SPREAD</small><b id="detailSpread">—</b></div></div>
+    <div class="target-levels"><div>TP ilustrasi +3.5% <b id="detailTP">—</b></div><div>SL ilustrasi −1.2% <b id="detailSL">—</b></div></div>
+    <div class="modal-actions"><a href="#" id="openKucoin" target="_blank" rel="noopener noreferrer" class="primary-link">Buka KuCoin ↗</a><a href="#" id="openTradingview" target="_blank" rel="noopener noreferrer" class="alt-link">TradingView ↗</a></div>
+    <p class="modal-note">Harga TP/SL ialah anggaran daripada harga semasa, bukan cadangan entry atau order sebenar.</p>
+  </div></div>
+</body>
+</html>
