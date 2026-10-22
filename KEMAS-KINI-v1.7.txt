@@ -1,0 +1,36 @@
+KUCOIN RADAR v1.7 — INTRADAY HIT & RUN
+=======================================
+
+Fungsi baru terletak SELEPAS Trading Journal dan SEBELUM Market Radar.
+Menunjukkan pair USDT KuCoin Spot dengan kenaikan 24 jam sekurang-kurangnya 10%,
+volume USDT tinggi (default minimum 10 juta) dan spread tidak melebihi 0.30%.
+
+Penapis pilihan pengguna:
+- Kenaikan 24 jam: +10%, +15%, atau +20%.
+- Volume 24 jam: 5M, 10M (asal), 25M, 50M USDT.
+- Susunan: momentum terkini, volume tertinggi, atau kenaikan 24 jam.
+
+Status:
+- MEMECUT: momentum 1m/5m/15m menyokong pergerakan.
+- PANTAU: memenuhi tapisan 24 jam, tetapi belum cukup momentum cepat.
+- PULLBACK: momentum 1m/5m berkurang atau negatif.
+- TERLALU PANAS: kenaikan 1m/5m sangat cepat; risiko beli terlalu lambat.
+- DATA: ticker ada tetapi sejarah intraday belum lengkap.
+
+Senarai dan skor HANYA untuk pemantauan, bukan signal atau jaminan BUY.
+Stablecoin dan token leverage biasa dikecualikan. Stale data tidak dipaparkan.
+Butang '+ Pantau Trade' merekod REAL/PAPER secara MANUAL ke journal sedia ada.
+Tiada pesanan beli/jual dilaksanakan. Journal lama dikekalkan dalam browser.
+
+CARA UPDATE GitHub:
+1. Backup jurnal terlebih dahulu: Trading Journal → Backup JSON.
+2. Extract KuCoin_Radar_v1_7_Intraday_Hit_Run_GitHub_Update.zip.
+3. GitHub: fadhliroslan89/signals → Add file → Upload files.
+4. Upload isi ZIP (public/, test/, package.json, server.js dan fail panduan).
+   Pastikan public/hitrun.js berada dalam folder public.
+   Pastikan public/index.html dan public/app.js ditimpa dengan versi baru.
+5. Tekan Commit changes; tunggu Render Auto-Deploy status Live.
+6. Website: https://signals-ax4g.onrender.com, tekan Cmd+Shift+R.
+
+Update ini belum dihantar ke repository atau Render secara automatik.
+Ujian mock bukan bukti prestasi trading; semak data LIVE selepas deploy.

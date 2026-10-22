@@ -5,6 +5,9 @@ const SETTINGS_KEY = 'kucoin-radar-settings-v1';
 const FAVORITES_KEY = 'kucoin-radar-favorites-v1';
 const EARLY_COOLDOWN_KEY = 'kucoin-radar-early-cooldown-v13';
 const BREAKOUT_COOLDOWN_KEY = 'kucoin-radar-breakout-cooldown-v14';
+const HITRUN_SETTINGS_KEY = 'kucoin-radar-hitrun-settings-v17';
+let hitrunSettings = {gain:10,volume:10_000_000,spread:0.30,limit:12,sort:'active'};
+try { const saved=JSON.parse(localStorage.getItem(HITRUN_SETTINGS_KEY)||'{}'); if(saved && typeof saved==='object') { if([10,15,20].includes(saved.gain))hitrunSettings.gain=saved.gain; if([5e6,10e6,25e6,50e6].includes(saved.volume))hitrunSettings.volume=saved.volume; if(['active','volume','gain'].includes(saved.sort))hitrunSettings.sort=saved.sort; }} catch {}
 const SAFE = {minVolume:5_000_000,maxSpread:0.30,buy15:1.10,buy30:1.8,buy5:0.2,watch15:0.45,watch30:0.7};
 let settings = {};
 try { settings = JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}'); } catch {}
@@ -198,6 +201,20 @@ function initializeControls(){
   byId('closeDetail').addEventListener('click',closeDetail);
   byId('detailBackdrop').addEventListener('click',e=>{if(e.target===byId('detailBackdrop'))closeDetail();});
   window.addEventListener('keydown',e=>{if(e.key==='Escape')closeDetail();});
+  for (const [id,key,type] of [['hitrunMinGain','gain','number'],['hitrunMinVolume','volume','number'],['hitrunSort','sort','text']]) {
+    const input=byId(id);input.value=String(hitrunSettings[key]);
+    input.addEventListener('change',()=>{
+      hitrunSettings[key]=type==='number'?Number(input.value):input.value;
+      try{localStorage.setItem(HITRUN_SETTINGS_KEY,JSON.stringify(hitrunSettings));}catch{}
+      renderHitRun();
+    });
+  }
+  byId('hitrunCards').addEventListener('click',e=>{
+    const track=e.target.closest('button[data-hitrun-track]');
+    if(track){trackTrade(track.dataset.hitrunTrack,'INTRADAY HIT & RUN');return;}
+    const detail=e.target.closest('button[data-hitrun-detail]');
+    if(detail)openDetail(detail.dataset.hitrunDetail);
+  });
   byId('hunterCards').addEventListener('click',e=>{const track=e.target.closest('button[data-track]');if(track){trackTrade(track.dataset.track,'BREAKOUT');return;}const detail=e.target.closest('button[data-detail]');if(detail)openDetail(detail.dataset.detail);});
   byId('leaderCards').addEventListener('click',e=>{const track=e.target.closest('button[data-track]');if(track){trackTrade(track.dataset.track,'MOMENTUM');return;}const detail=e.target.closest('button[data-detail]');if(detail)openDetail(detail.dataset.detail);});
   byId('radarRows').addEventListener('click',e=>{
@@ -346,6 +363,42 @@ function renderHunter(){
   }
   el.replaceChildren(...rows.map(hunterCard));
 }
+function renderHitRun(){
+  const data=state.latest;
+  const fresh=!!(data?.updatedAt && Date.now()-data.updatedAt<90_000 && !data.error);
+  const grid=byId('hitrunCards');
+  const sel=window.RadarHitRun?.choose(state.rows,hitrunSettings)||{eligible:0,results:[],accelerating:0};
+  byId('hitrunCount').textContent=`${sel.results.length}/${sel.eligible}`;
+  byId('hitrunEligible').textContent=`${sel.eligible} coin lulus saringan · ${sel.accelerating} momentum sedang memecut`;
+  byId('hitrunLive').textContent=data?.mock?'DEMO — harga bukan pasaran sebenar':fresh?'● KuCoin LIVE · 20s':'● Menunggu data segar';
+  if(!fresh){grid.replaceChildren(node('div','leaders-empty','Data KuCoin belum segar. Senarai Hit & Run disembunyikan sehingga ticker terkini diterima.'));return;}
+  if(!sel.results.length){grid.replaceChildren(node('div','leaders-empty',`Tiada coin mencapai +${hitrunSettings.gain}% dalam 24 jam dengan volume ${currency(hitrunSettings.volume)} dan spread ≤ 0.30%. Jangan longgarkan risiko semata-mata untuk mendapatkan signal.`));return;}
+  const cards=sel.results.map((r,i)=>{
+    const status=r.hitrun.status;
+    const cls=status==='MEMECUT'?'fast':status==='TERLALU PANAS'?'hot':status==='PULLBACK'?'pullback':'';
+    const wrap=node('article','hitrun-card-wrap '+cls);
+    const body=node('div','hitrun-card-body');
+    const head=node('div','hitrun-card-head');head.append(node('span','hitrun-rank','#'+(i+1)),node('span','hitrun-flag '+cls,status));
+    const label=node('div','hitrun-card-title');label.append(node('strong','hitrun-ticker',r.symbol.replace('-USDT','')),node('span','hitrun-usdt',price(r.price)+' USDT'));
+    const major=node('div','hitrun-main');
+    const change=node('div');change.append(node('small','','KENAIKAN 24 JAM'),node('strong','',percent(r.change24h)));
+    const liquidity=node('div');liquidity.append(node('small','','VOLUME 24J'),node('b','',currency(r.volume)));
+    major.append(change,liquidity);
+    const momentum=node('div','hitrun-mini');
+    for(const [key,value] of [['1m',r.m1],['5m',r.m5],['15m',r.m15]]){
+      const item=node('div');item.append(node('small','',key),pCell(value));momentum.append(item);
+    }
+    const reason=node('div','hitrun-why',r.hitrun.reason);
+    const foot=node('div','hitrun-card-foot');foot.append(node('span','',`Spread ${percent(r.spread).replace('+','')}`),node('strong','',`Skor pantauan ${r.hitrunScore}/100`));
+    body.append(head,label,major,momentum,reason,foot);
+    const actions=node('div','hitrun-actions');
+    const track=node('button','','+ Pantau Trade');track.type='button';track.dataset.hitrunTrack=r.symbol;track.title='Hanya rekod journal; tidak hantar pesanan KuCoin';
+    const detail=node('button','','Lihat carta ↗');detail.type='button';detail.dataset.hitrunDetail=r.symbol;
+    actions.append(track,detail);wrap.append(body,actions);
+    return wrap;
+  });
+  grid.replaceChildren(...cards);
+}
 function renderAlerts(){
   const server=state.latest?.alerts||[];
   const combined=[...state.localAlerts,...server].sort((a,b)=>b.at-a.at).filter((a,i,arr)=>arr.findIndex(x=>x.symbol===a.symbol&&Math.abs(x.at-a.at)<1000)===i).slice(0,7);
@@ -375,7 +428,7 @@ function render(){
   bootNote.classList.toggle('hidden',!pending&&!data.mock&&!!data.updatedAt);
   bootNote.textContent=data.mock?'MOD DEMO: Ini data ujian, BUKAN harga KuCoin semasa. Matikan MOCK_KUCOIN untuk live.':pending?`Sejarah 1-minit sedang disediakan: ${done}/${total} pair (${Math.round(done/total*100)}%). Pair belum selesai akan ditanda DATA. Kegagalan: ${boot.failures||0}.`:'Menunggu data pasaran KuCoin...';
   byId('tgChip').textContent=data.telegramEnabled?'TELEGRAM ON':'BROWSER';
-  renderLeaders();renderHunter();renderRows();renderAlerts();
+  renderLeaders();renderHunter();renderHitRun();renderRows();renderAlerts();
   window.RadarJournalUI?.updateMarket(state.rows,{updatedAt:data.updatedAt,mock:data.mock,error:data.error});
 }
 function recalculate(){

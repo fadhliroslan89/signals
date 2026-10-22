@@ -1,8 +1,8 @@
 {
   "name": "kucoin-scalping-radar",
-  "version": "1.6.0",
+  "version": "1.7.0",
   "private": true,
-  "description": "Responsive, real-data KuCoin spot USDT scanner (15m/30m momentum, spread, volume, browser + optional Telegram alerts)",
+  "description": "KuCoin USDT Spot momentum, breakout, journal and intraday high-volume 24h gainers monitor",
   "main": "server.js",
   "engines": {
     "node": ">=20"
