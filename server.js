@@ -10,6 +10,7 @@ const { URL } = require('node:url');
 const { DEFAULTS, rowFromTicker, number } = require('./lib/scanner');
 const { evaluate: evaluateQuality } = require('./public/entry-quality');
 const { candlesFromKucoin, analyze: breakoutAnalyze } = require('./lib/breakout');
+const { isExcluded: isHitrunExcluded } = require('./public/hitrun');
 const PORT = Number(process.env.PORT || 3000);
 const HOST = process.env.HOST || '0.0.0.0';
 const MOCK = process.env.MOCK_KUCOIN === '1';
@@ -115,13 +116,17 @@ function mockCandles(symbol,index,now){
   state.candles.set(symbol,map);
 }
 function hunterCandidates(){
-  return [...state.rows]
-    .filter(r=>r.volume>=cfg.minVolume && r.spread!==null && r.spread<=cfg.maxSpread && r.m15!==null)
-    .sort((a,b)=>{
-      const priority=r=>r.score+Math.min(30,Math.max(0,r.m5||0)*28)+Math.min(16,Math.max(0,r.m1||0)*32);
-      return priority(b)-priority(a)||b.volume-a.volume;
-    })
-    .slice(0,HUNTER_LIMIT).map(r=>r.symbol);
+  const liquid=state.rows.filter(r=>r.volume>=cfg.minVolume && r.spread!==null && r.spread<=cfg.maxSpread && r.m15!==null);
+  const priority=r=>r.score+Math.min(30,Math.max(0,r.m5||0)*28)+Math.min(16,Math.max(0,r.m1||0)*32);
+  // v1.9: reserve 12 of the existing 30 OHLCV monitoring slots for fast 24h gainers.
+  // No extra requests/second: only changes which pairs get refreshed.
+  const gainers=state.rows.filter(r=>r.change24h>=10&&!isHitrunExcluded(r.symbol)
+    && r.volume>=1_000_000 && r.spread!==null && r.spread<=.25 && r.m15!==null
+    && (r.volume>=5_000_000 ? r.spread<=.15 : r.volume<5_000_000));
+  gainers.sort((a,b)=>priority(b)-priority(a) || b.volume-a.volume);
+  liquid.sort((a,b)=>priority(b)-priority(a) || b.volume-a.volume);
+  const chosen=[...gainers.slice(0,12),...liquid];
+  return [...new Set(chosen.map(r=>r.symbol))].slice(0,HUNTER_LIMIT);
 }
 async function refreshHunter(){
   if(state.hunterSyncing || state.bootstrap.active || !state.allowed.size)return;
@@ -187,6 +192,11 @@ function computeRows() {
       const r=rowFromTicker(t,state.histories.get(t.symbol),now,cfg);
       if(r){
         r.breakout=state.hunterWatched.has(r.symbol)?breakoutAnalyze(state.candles.get(r.symbol),now,cfg,r):{signal:'NONE',coverage:'NOT_MONITORED'};
+        // v1.9 reuse completed OHLCV when available for dual-tier volume spike checks.
+        // Unmonitored candles expire; never infer RVOL from a stale snapshot.
+        r.hitrunOhlcv=(r.change24h>=9.5 && r.volume>=900_000)
+          ?breakoutAnalyze(state.candles.get(r.symbol),now,{minVolume:0,maxSpread:100},r)
+          :{coverage:'NOT_APPLICABLE'};
         r.entryQuality=evaluateQuality(r,cfg,now);
         r.status=r.entryQuality.status;
       }
@@ -265,7 +275,7 @@ const server = http.createServer((req, res) => {
   if (req.method !== 'GET' && req.method !== 'HEAD') return json(res,{error:'Method not allowed'},405);
   const url = new URL(req.url || '/', 'http://localhost');
   if (url.pathname === '/api/status') return json(res,{
-    strategyVersion:'1.8', updatedAt:state.lastUpdate, now:Date.now(), pairs:state.allowed.size, fetched:state.rows.length,
+    strategyVersion:'1.9', updatedAt:state.lastUpdate, now:Date.now(), pairs:state.allowed.size, fetched:state.rows.length,
     bootstrap:state.bootstrap, error:state.error, mock:MOCK, telegramEnabled, defaults:cfg,
     hunter:{monitored:state.hunterWatched.size,limit:HUNTER_LIMIT,lastRefreshed:state.hunterLastRefresh,failures:state.hunterFailures},
     alerts:state.alertLog.slice(0,12), rows:state.rows,

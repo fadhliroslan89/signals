@@ -130,3 +130,17 @@ Panel intraday baharu diletakkan **di bawah Trading Journal dan sebelum Market R
 Ia menyenaraikan KuCoin Spot USDT yang telah meningkat sekurang-kurangnya **10% dalam 24 jam**, mencapai volume 24 jam **≥10 juta USDT** dan spread **≤0.30%** secara default. Pengguna boleh menetapkan ambang +10/+15/+20%, volume ≥5/10/25/50 juta dan menyusun berdasarkan momentum terkini, volume atau kenaikan harian.
 
 Momentum 1m/5m/15m digunakan untuk membezakan `MEMECUT`, `PANTAU`, `PULLBACK`, `TERLALU PANAS`, `DATA`. Penyenaraian +10% ialah **kenaikan lalu**, bukan ramalan, peluang untung atau isyarat BUY. Modul menapis stablecoin dan token leverage lazim, serta tidak memaparkan baris ticker semasa API lapuk. Sejarah intraday boleh lambat tersedia selepas Render dihidupkan semula. Setiap kad mempunyai butang `+ Pantau Trade` yang merekod posisi secara manual ke journal browser sedia ada tanpa membuat transaksi KuCoin.
+
+## KuCoin Radar v1.9 — Dual Mode Hit & Run
+
+The **Intraday Hit & Run** section remains directly below the Trading Journal and above Market Radar. All statuses are screening observations, **never orders or automatic BUY signals**.
+
+- **High Liquidity:** 24h gain >= 10%, turnover >= 5 million USDT, spread <= 0.15%.
+- **Aggressive Watchlist:** 24h gain >= 10%, turnover >= 1 million and < 5 million USDT, spread <= 0.25%. Expect greater slippage, especially for large market orders.
+- Sort by momentum/confirmation, breakout, liquidity, or 24h gain. Adjust minimum 24h gain to 10%, 15%, or 20%.
+- Displays 1m / 5m RVOL using **already fetched, closed** KuCoin 1m candles; 1m >= 1.8x or 5m >= 1.4x is a volume spike. A confirmed breakout requires a completed candle crossing the lookback high, also with sufficient RVOL. Missing/stale OHLCV is labeled missing rather than treated as zero or confirmed.
+- The server reserves up to 12 of its existing 30 detailed OHLCV monitoring slots for shortlisted 24h gainers; the wider 24h ticker scan still covers active USDT spot pairs. Newly added pairs can temporarily show no RVOL while history warms up.
+- **+ Pantau Trade** launches the existing manual REAL/PAPER Trading Journal (local browser storage); no KuCoin orders, no account API keys. Export a JSON backup before deployment or clearing browser data.
+- With Render Free, background scans and browser alerts are not guaranteed while the service is asleep; server bootstrap restarts after sleep.
+
+Tests: `npm test`. Demo server: `npm run demo` (all demo values explicitly simulated).

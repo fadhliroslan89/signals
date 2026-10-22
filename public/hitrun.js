@@ -73,5 +73,56 @@
       qualified:qualified.length,spreadMissing:liquid.filter(r=>!finite(r.spread)).length,
       top};
   }
-  return {choose,score,recent,isExcluded,diagnose,defaults};
+  // v1.9: separate liquidity tiers. Both remain watchlists, not BUY signals.
+  const DUAL = Object.freeze({highMin:5_000_000,aggressiveMin:1_000_000,highSpread:.15,aggressiveSpread:.25,highMax:null,limit:10});
+  function signalContext(row) {
+    const b=row.hitrunOhlcv;
+    const ready=b?.coverage==='READY';
+    const rvol1=ready&&finite(b.rvol1)?b.rvol1:null;
+    const rvol5=ready&&finite(b.rvol5)?b.rvol5:null;
+    const spike1=rvol1!==null&&rvol1>=1.8;
+    const spike5=rvol5!==null&&rvol5>=1.4;
+    const breakout=ready&&((b.one===true&&spike1)||(b.five===true&&spike5));
+    const momentum=recent(row);
+    let label='PANTAU',order=1,description='Belum cukup pengesahan entry; bukan signal BUY.';
+    if(momentum.status==='DATA'){label='DATA';order=0;description='Data harga intraday belum lengkap.';}
+    else if(momentum.status==='TERLALU PANAS'){label='TERLALU PANAS';order=0;description='Harga bergerak terlalu laju; elakkan kejar candle.';}
+    else if(momentum.status==='PULLBACK'){label='PULLBACK';order=0;description='Momentum harga sedang lemah.';}
+    else if(breakout){label='BREAKOUT SAH';order=5;description='Breakout candle tutup + volume spike; semak chart sebelum keputusan.';}
+    else if(spike1||spike5){label='VOLUME SPIKE';order=4;description='RVOL meningkat tetapi breakout belum disahkan.';}
+    else if(momentum.status==='MEMECUT'){label='MEMECUT';order=3;description='Momentum meningkat; menunggu breakout dan volume.';}
+    else if(!ready){label='OHLCV MENUNGGU';order=1;description='Candle/volume terkini belum tersedia; bukan pengesahan.';}
+    return {label,order,description,rvol1,rvol5,spike1,spike5,breakout,coverage:b?.coverage||'DATA',at1:ready?b.at1:null};
+  }
+  function dual(rows, options={}) {
+    const cfg={...DUAL,...options};
+    const gain=finite(cfg.gain)&&cfg.gain>=0?cfg.gain:10;
+    const limit=Number.isInteger(cfg.limit)?Math.min(25,Math.max(1,cfg.limit)):10;
+    const candidates=(Array.isArray(rows)?rows:[])
+      .filter(r=>r&&!isExcluded(r.symbol)&&finite(r.change24h)&&r.change24h>=gain
+        && finite(r.volume)&&finite(r.spread)&&r.spread>=0&&finite(r.price)&&r.price>0)
+      .map(r=>{
+        const insight=signalContext(r);
+        // A screening score, never a predicted probability of success.
+        const rating=Math.max(0,Math.min(100,Math.round(score(r)*.65 + insight.order*8 + (insight.spike1?5:0) + (insight.spike5?4:0))));
+        return {...r,hitrun:recent(r),insight,hitrunScore:rating};
+      });
+    const high=candidates.filter(r=>r.volume>=cfg.highMin&&r.spread<=cfg.highSpread);
+    const aggressive=candidates.filter(r=>r.volume>=cfg.aggressiveMin&&r.volume<cfg.highMin&&r.spread<=cfg.aggressiveSpread);
+    function pick(items){
+      const compare=cfg.sort==='volume'?(a,b)=>b.volume-a.volume:
+        cfg.sort==='gain'?(a,b)=>b.change24h-a.change24h:
+        cfg.sort==='breakout'?(a,b)=>Number(b.insight.breakout)-Number(a.insight.breakout)||b.insight.order-a.insight.order:
+        (a,b)=>b.insight.order-a.insight.order||b.hitrunScore-a.hitrunScore;
+      items.sort((a,b)=>compare(a,b)||b.hitrunScore-a.hitrunScore||b.volume-a.volume||a.symbol.localeCompare(b.symbol));
+      return {eligible:items.length,results:items.slice(0,limit),breakouts:items.filter(r=>r.insight.breakout).length,spikes:items.filter(r=>r.insight.spike1||r.insight.spike5).length};
+    }
+    return {high:pick(high),aggressive:pick(aggressive),
+      diagnostics:{gain:candidates.length,high:high.length,aggressive:aggressive.length,
+        under1m:candidates.filter(r=>r.volume<cfg.aggressiveMin).length,
+        spreadExcluded:candidates.filter(r=>r.volume>=cfg.aggressiveMin &&
+          (r.volume>=cfg.highMin ? r.spread>cfg.highSpread : r.spread>cfg.aggressiveSpread)).length},
+      thresholds:{gain,highMin:cfg.highMin,aggressiveMin:cfg.aggressiveMin,highSpread:cfg.highSpread,aggressiveSpread:cfg.aggressiveSpread}};
+  }
+  return {choose,score,recent,isExcluded,diagnose,dual,signalContext,defaults,DUAL};
 });

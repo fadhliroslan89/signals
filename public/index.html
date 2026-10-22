@@ -5,18 +5,18 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="theme-color" content="#071322" />
   <meta name="description" content="KuCoin Spot USDT scanner: top 10 momentum, 5m/15m/30m, liquidity, spread, alert." />
-  <title>KuCoin Scalping Radar v1.7 — USDT Spot</title>
+  <title>KuCoin Scalping Radar v1.9 — Dual Mode Hit & Run</title>
   <link rel="icon" type="image/svg+xml" href="/icon.svg" />
   <link rel="manifest" href="/manifest.webmanifest" />
-  <link rel="stylesheet" href="/styles.css?v=1.8" />
+  <link rel="stylesheet" href="/styles.css?v=1.9" />
   <script src="/top10.js?v=1.6" defer></script>
   <script src="/acceleration.js?v=1.6" defer></script>
   <script src="/planner.js?v=1.6" defer></script>
   <script src="/journal-core.js?v=1.6" defer></script>
   <script src="/journal-ui.js?v=1.6" defer></script>
   <script src="/entry-quality.js?v=1.6" defer></script>
-  <script src="/hitrun.js?v=1.8" defer></script>
-  <script src="/app.js?v=1.8" defer></script>
+  <script src="/hitrun.js?v=1.9" defer></script>
+  <script src="/app.js?v=1.9" defer></script>
 </head>
 <body>
   <div class="page">
@@ -115,13 +115,13 @@
         </div>
       </section>
 
-      <!-- v1.7 Intraday Hit & Run: directly BELOW Trading Journal, before Market Radar. -->
+      <!-- v1.9 Dual Mode Hit & Run: directly after the journal, before Market Radar. -->
       <section id="hitrunSection" class="hitrun-section" aria-labelledby="hitrunTitle">
         <div class="section-head hitrun-head">
           <div>
             <div class="eyebrow dim">INTRADAY GAINERS / KUCOIN SPOT USDT</div>
-            <h2 id="hitrunTitle">⚡ Intraday Hit &amp; Run <span id="hitrunCount" class="subnum">0</span></h2>
-            <p class="leaders-subtitle">Coin naik sekurang-kurangnya <b>+10% dalam 24 jam</b> dan volume tinggi. Status MEMECUT/PANTAU ialah pemerhatian, <b>bukan signal BUY</b>.</p>
+            <h2 id="hitrunTitle">⚡ Intraday Hit &amp; Run <span id="hitrunCount" class="subnum">0</span> <span class="subnum">Dual Mode v1.9</span></h2>
+            <p class="leaders-subtitle">Dua senarai coin yang naik ≥10% dalam 24 jam: <strong>High Liquidity</strong> dan <strong>Aggressive Watchlist</strong>. Semuanya pemerhatian, <strong>bukan BUY</strong>.</p>
           </div>
           <span class="hitrun-live" id="hitrunLive" role="status">Menunggu data KuCoin...</span>
         </div>
@@ -130,25 +130,28 @@
             <label>Minimum kenaikan 24j
               <select id="hitrunMinGain" aria-label="Minimum kenaikan harga 24 jam"><option value="10" selected>+10%</option><option value="15">+15%</option><option value="20">+20%</option></select>
             </label>
-            <label>Volume 24j (USDT)
-              <select id="hitrunMinVolume" aria-label="Minimum volume 24 jam"><option value="5000000">≥ $5 juta</option><option value="10000000" selected>≥ $10 juta</option><option value="25000000">≥ $25 juta</option><option value="50000000">≥ $50 juta</option></select>
-            </label>
-            <label>Susunan
-              <select id="hitrunSort" aria-label="Susunan coin Hit and Run"><option value="active" selected>Momentum terkini</option><option value="volume">Volume tertinggi</option><option value="gain">Kenaikan 24j</option></select>
+            <label>Susunan coin
+              <select id="hitrunSort" aria-label="Susunan coin Hit and Run"><option value="active" selected>Momentum &amp; pengesahan</option><option value="breakout">Breakout disahkan dahulu</option><option value="volume">Volume tertinggi</option><option value="gain">Kenaikan 24j</option></select>
             </label>
             <span id="hitrunEligible" class="hitrun-eligible">Menunggu ticker...</span>
           </div>
-          <div id="hitrunCards" class="hitrun-grid" aria-live="polite"><div class="leaders-empty">Menunggu data ticker KuCoin 24 jam...</div></div>
+          <div class="hitrun-tiers">
+            <section class="hitrun-tier high" aria-labelledby="hitrunHighTitle">
+              <div class="hitrun-tier-head"><div><h3 id="hitrunHighTitle">🛡️ High Liquidity <span id="hitrunHighCount" class="hitrun-tier-count">0</span></h3><p>Volume ≥$5 juta / 24j · spread ≤0.15%</p></div><span id="hitrunHighStats">Menunggu data</span></div>
+              <div id="hitrunHighCards" class="hitrun-grid" aria-live="polite"><div class="leaders-empty">Menunggu ticker KuCoin...</div></div>
+            </section>
+            <section class="hitrun-tier aggressive" aria-labelledby="hitrunAggTitle">
+              <div class="hitrun-tier-head"><div><h3 id="hitrunAggTitle">⚡ Aggressive Watchlist <span id="hitrunAggCount" class="hitrun-tier-count">0</span></h3><p>Volume $1 juta hingga &lt;$5 juta / 24j · spread ≤0.25% · risiko slippage lebih tinggi</p></div><span id="hitrunAggStats">Menunggu data</span></div>
+              <div id="hitrunAggCards" class="hitrun-grid" aria-live="polite"><div class="leaders-empty">Menunggu ticker KuCoin...</div></div>
+            </section>
+          </div>
           <div class="hitrun-diagnostics" aria-labelledby="hitrunDiagnosticTitle">
-            <div class="hitrun-subhead"><h3 id="hitrunDiagnosticTitle">Kenapa coin tidak lulus?</h3><span>Data ticker 24 jam • tidak perlu tunggu candle 1m</span></div>
+            <div class="hitrun-subhead"><h3 id="hitrunDiagnosticTitle">Kenapa coin tidak lulus?</h3><span>Data ticker 24 jam; analisis RVOL hanya jika candle masih segar</span></div>
             <div id="hitrunStages" class="hitrun-stages" aria-live="polite">Mengira penapis...</div>
             <div class="hitrun-subhead"><h3>Top Gainers 24 Jam <span class="hitrun-observe">PEMERHATIAN SAHAJA</span></h3><span>Coin teratas walaupun tidak cukup syarat Hit &amp; Run</span></div>
             <div id="hitrunTopGainers" class="hitrun-gainers" aria-live="polite">Menunggu ticker...</div>
           </div>
-          <div class="leaders-footer">
-            <span>Penapis tambahan: spread ≤ 0.30%; stablecoin dan token leverage dikecualikan. Data 1/5/15 minit mungkin belum tersedia semasa loading.</span>
-            <strong>Coin sudah naik ≥10% tidak bermakna ia akan naik lagi. Elakkan mengejar candle; semak risiko pada carta.</strong>
-          </div>
+          <div class="leaders-footer"><span>RVOL 1m ≥1.8× / 5m ≥1.4× • Breakout disahkan hanya pada candle yang sudah tutup. Jika OHLCV belum tersedia, paparan akan tunjuk DATA/—, bukan signal palsu.</span><strong>Tiada auto-order. Coin naik ≥10% masih boleh jatuh mendadak. Semak chart, spread dan depth sebelum trade.</strong></div>
         </div>
       </section>
 

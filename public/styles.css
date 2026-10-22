@@ -106,3 +106,16 @@
 .hitrun-none{margin:0;color:#9ac0d2;font-size:11px}
 @media(max-width:780px){.hitrun-stages{grid-template-columns:repeat(2,minmax(0,1fr))}.hitrun-stage:nth-child(2) .hitrun-stage-arrow{display:none}.hitrun-gainer-row{grid-template-columns:minmax(50px,.6fr) minmax(72px,.7fr) minmax(80px,1fr) minmax(120px,1.2fr)}.hitrun-gainer-row>span:nth-child(4){display:none}.hitrun-view-btn{grid-column:4;justify-self:end}}
 @media(max-width:490px){.hitrun-diagnostics{padding:11px}.hitrun-gainer-row{grid-template-columns:55px 70px minmax(67px,1fr) 55px;gap:5px;font-size:10px;padding:8px}.hitrun-gainer-row>span:nth-child(4),.hitrun-gainer-row>span:nth-child(5){display:none}.hitrun-view-btn{grid-column:4}.hitrun-stage-arrow{display:none}.hitrun-stage strong{font-size:19px}}
+
+/* v1.9 dual-tier Hit & Run, journal stays above this panel. */
+.hitrun-tiers{display:flex;flex-direction:column;gap:0}
+.hitrun-tier{border-bottom:1px solid #244e62}
+.hitrun-tier-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:15px 18px 0;color:#dff7f5}
+.hitrun-tier-head h3{font-size:16px;margin:0 0 5px;font-weight:850}
+.hitrun-tier-head p{font-size:11px;margin:0;color:#98bdcb}
+.hitrun-tier-head>span{font-size:11px;color:#69e8c4;white-space:nowrap;font-weight:700}
+.hitrun-tier-count{font-size:10px;color:#acd3db;background:#194055;padding:3px 7px;border-radius:5px}
+.hitrun-tier.aggressive .hitrun-tier-head h3{color:#f9dca2}
+.hitrun-tier.aggressive .hitrun-rank{color:#e7bf82}
+.hitrun-rvol{display:flex;flex-wrap:wrap;justify-content:space-between;gap:6px 10px;border-top:1px solid #34566b;padding-top:8px;color:#afd6df;font-size:11px;font-weight:700}
+@media(max-width:600px){.hitrun-tier-head{align-items:flex-start;flex-wrap:wrap;padding:14px 11px 0}.hitrun-tier-head>span{white-space:normal}}

@@ -5,9 +5,9 @@ const SETTINGS_KEY = 'kucoin-radar-settings-v1';
 const FAVORITES_KEY = 'kucoin-radar-favorites-v1';
 const EARLY_COOLDOWN_KEY = 'kucoin-radar-early-cooldown-v13';
 const BREAKOUT_COOLDOWN_KEY = 'kucoin-radar-breakout-cooldown-v14';
-const HITRUN_SETTINGS_KEY = 'kucoin-radar-hitrun-settings-v17';
-let hitrunSettings = {gain:10,volume:10_000_000,spread:0.30,limit:12,sort:'active'};
-try { const saved=JSON.parse(localStorage.getItem(HITRUN_SETTINGS_KEY)||'{}'); if(saved && typeof saved==='object') { if([10,15,20].includes(saved.gain))hitrunSettings.gain=saved.gain; if([5e6,10e6,25e6,50e6].includes(saved.volume))hitrunSettings.volume=saved.volume; if(['active','volume','gain'].includes(saved.sort))hitrunSettings.sort=saved.sort; }} catch {}
+const HITRUN_SETTINGS_KEY = 'kucoin-radar-hitrun-settings-v19';
+let hitrunSettings = {gain:10,limit:10,sort:'active'};
+try { const saved=JSON.parse(localStorage.getItem(HITRUN_SETTINGS_KEY)||'{}'); if(saved && typeof saved==='object') { if([10,15,20].includes(saved.gain))hitrunSettings.gain=saved.gain; if(['active','breakout','volume','gain'].includes(saved.sort))hitrunSettings.sort=saved.sort; }} catch {}
 const SAFE = {minVolume:5_000_000,maxSpread:0.30,buy15:1.10,buy30:1.8,buy5:0.2,watch15:0.45,watch30:0.7};
 let settings = {};
 try { settings = JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}'); } catch {}
@@ -201,7 +201,7 @@ function initializeControls(){
   byId('closeDetail').addEventListener('click',closeDetail);
   byId('detailBackdrop').addEventListener('click',e=>{if(e.target===byId('detailBackdrop'))closeDetail();});
   window.addEventListener('keydown',e=>{if(e.key==='Escape')closeDetail();});
-  for (const [id,key,type] of [['hitrunMinGain','gain','number'],['hitrunMinVolume','volume','number'],['hitrunSort','sort','text']]) {
+  for (const [id,key,type] of [['hitrunMinGain','gain','number'],['hitrunSort','sort','text']]) {
     const input=byId(id);input.value=String(hitrunSettings[key]);
     input.addEventListener('change',()=>{
       hitrunSettings[key]=type==='number'?Number(input.value):input.value;
@@ -213,9 +213,9 @@ function initializeControls(){
     const detail=e.target.closest('button[data-hitrun-detail]');
     if(detail)openDetail(detail.dataset.hitrunDetail);
   });
-  byId('hitrunCards').addEventListener('click',e=>{
+  for(const id of ['hitrunHighCards','hitrunAggCards'])byId(id).addEventListener('click',e=>{
     const track=e.target.closest('button[data-hitrun-track]');
-    if(track){trackTrade(track.dataset.hitrunTrack,'INTRADAY HIT & RUN');return;}
+    if(track){trackTrade(track.dataset.hitrunTrack,id==='hitrunHighCards'?'HITRUN HIGH LIQUIDITY':'HITRUN AGGRESSIVE');return;}
     const detail=e.target.closest('button[data-hitrun-detail]');
     if(detail)openDetail(detail.dataset.hitrunDetail);
   });
@@ -369,70 +369,70 @@ function renderHunter(){
 }
 function renderHitRun(){
   const data=state.latest;
-  const fresh=!!(data?.updatedAt && Date.now()-data.updatedAt<90_000 && !data.error);
-  const grid=byId('hitrunCards');
-  const sel=window.RadarHitRun?.choose(state.rows,hitrunSettings)||{eligible:0,results:[],accelerating:0};
-  byId('hitrunCount').textContent=`${sel.results.length}/${sel.eligible}`;
-  byId('hitrunEligible').textContent=`${sel.eligible} coin lulus saringan · ${sel.accelerating} momentum sedang memecut`;
-  byId('hitrunLive').textContent=data?.mock?'DEMO — harga bukan pasaran sebenar':fresh?'● KuCoin LIVE · 20s':'● Menunggu data segar';
-  const stages=byId('hitrunStages');
-  const top=byId('hitrunTopGainers');
+  const fresh=!!(data?.updatedAt&&Date.now()-data.updatedAt<90_000&&!data.error);
+  const highBox=byId('hitrunHighCards'),agBox=byId('hitrunAggCards');
+  const stages=byId('hitrunStages'),top=byId('hitrunTopGainers');
+  const sel=window.RadarHitRun?.dual(state.rows,hitrunSettings);
+  const high=sel?.high||{eligible:0,results:[],spikes:0,breakouts:0};
+  const ag=sel?.aggressive||{eligible:0,results:[],spikes:0,breakouts:0};
+  byId('hitrunCount').textContent=`${high.eligible+ag.eligible} layak`;
+  byId('hitrunHighCount').textContent=`${high.results.length}/${high.eligible}`;
+  byId('hitrunAggCount').textContent=`${ag.results.length}/${ag.eligible}`;
+  byId('hitrunHighStats').textContent=`${high.spikes} spike · ${high.breakouts} breakout`;
+  byId('hitrunAggStats').textContent=`${ag.spikes} spike · ${ag.breakouts} breakout`;
+  byId('hitrunEligible').textContent=`${high.eligible} high liquidity · ${ag.eligible} aggressive`;
+  byId('hitrunLive').textContent=data?.mock?'DEMO — bukan data sebenar':fresh?'● KuCoin LIVE · 20s':'● Menunggu data segar';
   if(!fresh){
-    grid.replaceChildren(node('div','leaders-empty','Data KuCoin belum segar. Senarai Hit & Run disembunyikan sehingga ticker terkini diterima.'));
-    stages.replaceChildren(node('div','leaders-empty','Tunggu data ticker segar untuk semakan penapis.'));
-    top.replaceChildren(node('div','leaders-empty','Tidak memaparkan harga lapuk.'));
+    for(const el of [highBox,agBox])el.replaceChildren(node('div','leaders-empty','Data KuCoin belum segar. Senarai disembunyikan sehingga API tersedia.'));
+    stages.replaceChildren(node('div','leaders-empty','Menunggu ticker terkini.'));
+    top.replaceChildren(node('div','leaders-empty','Harga lapuk tidak dipaparkan.'));
     return;
   }
-  const diag=window.RadarHitRun?.diagnose(state.rows,hitrunSettings);
+  const diag=window.RadarHitRun?.diagnose(state.rows,{gain:hitrunSettings.gain,volume:1_000_000,spread:.25});
   if(diag){
-    const steps=[['Pair spot USDT sah',diag.universe],['Naik ≥'+hitrunSettings.gain+'% (24j)',diag.gain],['+ Volume ≥'+currency(hitrunSettings.volume),diag.liquid],['+ Spread ≤'+hitrunSettings.spread.toFixed(2)+'%',diag.qualified]];
-    const items=steps.map(([label,count],i)=>{
-      const stage=node('div','hitrun-stage');
-      stage.append(node('span','hitrun-stage-label',label),node('strong','',String(count)));
-      if(i<steps.length-1)stage.append(node('span','hitrun-stage-arrow','→'));
-      return stage;
-    });
-    stages.replaceChildren(...items);
+    const steps=[['Pair spot USDT sah',diag.universe],['Naik ≥'+hitrunSettings.gain+'% (24j)',diag.gain],['Volume ≥$1 juta',diag.liquid],['Lulus satu tier',high.eligible+ag.eligible]];
+    stages.replaceChildren(...steps.map(([name,count],i)=>{
+      const el=node('div','hitrun-stage');el.append(node('span','hitrun-stage-label',name),node('strong','',String(count)));
+      if(i<3)el.append(node('span','hitrun-stage-arrow','→'));return el;
+    }));
     const table=node('div','hitrun-gainers-list');
-    if(!diag.top.length){table.append(node('p','hitrun-none','Tiada coin dengan kenaikan 24 jam positif dalam data ticker yang diterima.'));}
+    if(!diag.top.length)table.append(node('p','hitrun-none','Tiada coin naik dalam data ticker.'));
     else for(const r of diag.top){
       const row=node('div','hitrun-gainer-row');
-      row.append(node('strong','',r.symbol.replace('-USDT','')),
-        node('span','hitrun-gain-value',percent(r.change24h)),
-        node('span','',currency(r.volume)),
-        node('span','',num(r.spread)===null?'Spread tiada':r.spread.toFixed(3)+'%'),
-        node('span',r.diagnosticReason==='LULUS PENAPIS'?'hitrun-ok':'hitrun-reason',r.diagnosticReason));
+      const tier=r.volume>=5e6&&r.spread<=.15?'HIGH LIQUIDITY':r.volume>=1e6&&r.volume<5e6&&r.spread<=.25?'AGGRESSIVE':r.volume<1e6?'VOLUME RENDAH':'SPREAD / TIER TIDAK LULUS';
+      row.append(node('strong','',r.symbol.replace('-USDT','')),node('span','hitrun-gain-value',percent(r.change24h)),node('span','',currency(r.volume)),node('span','',num(r.spread)===null?'Spread tiada':r.spread.toFixed(3)+'%'),node('span',tier.includes('LIQUIDITY')||tier==='AGGRESSIVE'?'hitrun-ok':'hitrun-reason',tier));
       const btn=node('button','hitrun-view-btn','Carta ↗');btn.type='button';btn.dataset.hitrunDetail=r.symbol;row.append(btn);table.append(row);
     }
     top.replaceChildren(table);
   }
-
-  if(!sel.results.length){grid.replaceChildren(node('div','leaders-empty',`Tiada coin mencapai +${hitrunSettings.gain}% dalam 24 jam dengan volume ${currency(hitrunSettings.volume)} dan spread ≤ 0.30%. Jangan longgarkan risiko semata-mata untuk mendapatkan signal.`));return;}
-  const cards=sel.results.map((r,i)=>{
-    const status=r.hitrun.status;
-    const cls=status==='MEMECUT'?'fast':status==='TERLALU PANAS'?'hot':status==='PULLBACK'?'pullback':'';
-    const wrap=node('article','hitrun-card-wrap '+cls);
+  function card(r,i,tier){
+    const insight=r.insight;
+    const flag=insight.breakout?'fast':insight.label==='PULLBACK'?'pullback':insight.label==='TERLALU PANAS'?'hot':'';
+    const wrap=node('article','hitrun-card-wrap '+flag);
     const body=node('div','hitrun-card-body');
-    const head=node('div','hitrun-card-head');head.append(node('span','hitrun-rank','#'+(i+1)),node('span','hitrun-flag '+cls,status));
-    const label=node('div','hitrun-card-title');label.append(node('strong','hitrun-ticker',r.symbol.replace('-USDT','')),node('span','hitrun-usdt',price(r.price)+' USDT'));
+    const head=node('div','hitrun-card-head');head.append(node('span','hitrun-rank','#'+(i+1)),node('span','hitrun-flag '+flag,insight.label));
+    const title=node('div','hitrun-card-title');title.append(node('strong','hitrun-ticker',r.symbol.replace('-USDT','')),node('span','hitrun-usdt',price(r.price)+' USDT'));
     const major=node('div','hitrun-main');
-    const change=node('div');change.append(node('small','','KENAIKAN 24 JAM'),node('strong','',percent(r.change24h)));
-    const liquidity=node('div');liquidity.append(node('small','','VOLUME 24J'),node('b','',currency(r.volume)));
-    major.append(change,liquidity);
+    const change=node('div');change.append(node('small','','24 JAM'),node('strong','',percent(r.change24h)));
+    const liq=node('div');liq.append(node('small','','VOLUME 24J'),node('b','',currency(r.volume)));major.append(change,liq);
     const momentum=node('div','hitrun-mini');
-    for(const [key,value] of [['1m',r.m1],['5m',r.m5],['15m',r.m15]]){
-      const item=node('div');item.append(node('small','',key),pCell(value));momentum.append(item);
-    }
-    const reason=node('div','hitrun-why',r.hitrun.reason);
-    const foot=node('div','hitrun-card-foot');foot.append(node('span','',`Spread ${percent(r.spread).replace('+','')}`),node('strong','',`Skor pantauan ${r.hitrunScore}/100`));
-    body.append(head,label,major,momentum,reason,foot);
+    for(const [label,v] of [['1m',r.m1],['5m',r.m5],['15m',r.m15]]){const item=node('div');item.append(node('small','',label),pCell(v));momentum.append(item);}
+    const volume=node('div','hitrun-rvol');
+    volume.append(node('span','',`RVOL 1m: ${insight.rvol1===null?'—':insight.rvol1.toFixed(2)+'×'}`),node('span','',`RVOL 5m: ${insight.rvol5===null?'—':insight.rvol5.toFixed(2)+'×'}`));
+    const context=node('div','hitrun-why',insight.description);
+    const foot=node('div','hitrun-card-foot');foot.append(node('span','',`Spread ${r.spread.toFixed(3)}%`),node('strong','',`Skor ${r.hitrunScore}/100`));
+    body.append(head,title,major,momentum,volume,context,foot);
     const actions=node('div','hitrun-actions');
-    const track=node('button','','+ Pantau Trade');track.type='button';track.dataset.hitrunTrack=r.symbol;track.title='Hanya rekod journal; tidak hantar pesanan KuCoin';
+    const track=node('button','','+ Pantau Trade');track.type='button';track.dataset.hitrunTrack=r.symbol;track.title='Rekod REAL/PAPER secara manual sahaja; bukan order KuCoin';
     const detail=node('button','','Lihat carta ↗');detail.type='button';detail.dataset.hitrunDetail=r.symbol;
-    actions.append(track,detail);wrap.append(body,actions);
-    return wrap;
-  });
-  grid.replaceChildren(...cards);
+    actions.append(track,detail);wrap.append(body,actions);return wrap;
+  }
+  for(const [box,kind,result] of [[highBox,'high',high],[agBox,'aggressive',ag]]){
+    if(!result.results.length){
+      const message=kind==='high'?`Tiada coin naik ≥${hitrunSettings.gain}% dengan volume ≥$5 juta dan spread ≤0.15%.`:`Tiada coin naik ≥${hitrunSettings.gain}% dengan volume $1–5 juta dan spread ≤0.25%.`;
+      box.replaceChildren(node('div','leaders-empty',message));
+    }else box.replaceChildren(...result.results.map((r,i)=>card(r,i,kind)));
+  }
 }
 function renderAlerts(){
   const server=state.latest?.alerts||[];

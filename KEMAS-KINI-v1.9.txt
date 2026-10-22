@@ -1,0 +1,12 @@
+KUCOIN RADAR v1.9 — DUAL MODE HIT & RUN
+
+1. Backup JSON Trading Journal dalam website sebelum update.
+2. Download ZIP Update, extract, upload SEMUA fail/folder dari ZIP ke root repo signals GitHub.
+3. Pastikan server.js, package.json, public/app.js, public/index.html, public/hitrun.js, public/styles.css dan test/hitrun-dual.test.js berada di lokasi tepat.
+4. Commit changes. Render biasanya Auto Deploy daripada main; semak Live.
+5. Refresh website Cmd+Shift+R.
+6. Di bawah Trading Journal: High Liquidity (24j ≥$5M, spread ≤0.15%) dan Aggressive (24j $1M–<$5M, spread ≤0.25%).
+7. Kedua-duanya memerlukan kenaikan 24 jam ≥10% secara lalai; 15% dan 20% tersedia.
+8. RVOL memerlukan 21 candle 1m yang lengkap dan segar; breakout 5m perlu candle lengkap. Jika sejarah tidak lengkap/stale, ia ditanda —, bukan 0 atau BUY.
+9. Klik + Pantau Trade untuk rekod manual REAL/PAPER. Tidak menghantar order KuCoin.
+10. Jangan trade hanya berdasarkan Top Gainer, volume spike atau BREAKOUT SAH. Sasaran 3–4% dalam 15–30 minit tidak terjamin.
