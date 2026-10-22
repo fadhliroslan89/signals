@@ -1,0 +1,7 @@
+KuCoin Radar v1.8 — Diagnostik Intraday Hit & Run
+
+Mengapa 0/0? Panel baharu menerangkan peringkat tapisan dengan data ticker 24 jam (tanpa tunggu sejarah 1m): jumlah coin sah, coin naik >=10%, coin dengan volume mencukupi, coin dengan spread memenuhi syarat. Top Gainers memaparkan coin yang paling banyak naik walaupun belum layak; semuanya dilabel pemerhatian, bukan BUY.
+
+Langkah kemas kini: Backup JSON Trading Journal sebelum update. Extract ZIP, upload SEMUA fail dan folder di dalam ZIP ke akar repository GitHub signals (kekalkan laluan asal). Commit. Render auto deploy. Apabila Live, hard refresh Cmd+Shift+R. Jika browser masih cache, buka dalam private window.
+
+Data tidak dihantar ke KuCoin untuk transaksi. Tiada penyegerakan Trading Journal antara telefon/MacBook.

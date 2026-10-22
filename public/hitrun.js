@@ -49,5 +49,29 @@
     chosen.sort((a,b)=>compare(a,b)||a.symbol.localeCompare(b.symbol));
     return {eligible:chosen.length, results:chosen.slice(0, Math.max(1,Math.min(25,Math.floor(cfg.limit)||defaults.limit))), accelerating:chosen.filter(x=>x.hitrun.status==='MEMECUT').length};
   }
-  return {choose,score,recent,isExcluded,defaults};
+  // Stage-by-stage diagnostics only from 24h ticker data; candle history is NOT required.
+  // Counts are a funnel: valid universe -> gain -> gain+volume -> gain+volume+spread.
+  function diagnose(rows, options={}) {
+    const cfg={...defaults,...options};
+    const tradable=(Array.isArray(rows)?rows:[]).filter(r=>r && !isExcluded(r.symbol) &&
+      finite(r.price) && r.price>0 && finite(r.change24h) &&
+      finite(r.volume) && r.volume>=0);
+    const gain=tradable.filter(r=>r.change24h>=cfg.gain);
+    const liquid=gain.filter(r=>r.volume>=cfg.volume);
+    const qualified=liquid.filter(r=>finite(r.spread) && r.spread>=0 && r.spread<=cfg.spread);
+    const top=tradable.filter(r=>r.change24h>0)
+      .sort((a,b)=>b.change24h-a.change24h || b.volume-a.volume || a.symbol.localeCompare(b.symbol)).slice(0,8)
+      .map(r=>{
+        let reason='LULUS PENAPIS';
+        if(r.change24h<cfg.gain)reason='KENAIKAN RENDAH';
+        else if(r.volume<cfg.volume)reason='VOLUME RENDAH';
+        else if(!finite(r.spread))reason='SPREAD TIADA DATA';
+        else if(r.spread>cfg.spread)reason='SPREAD TINGGI';
+        return {...r,diagnosticReason:reason};
+      });
+    return {universe:tradable.length,gain:gain.length,liquid:liquid.length,
+      qualified:qualified.length,spreadMissing:liquid.filter(r=>!finite(r.spread)).length,
+      top};
+  }
+  return {choose,score,recent,isExcluded,diagnose,defaults};
 });

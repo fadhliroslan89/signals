@@ -8,7 +8,7 @@ test('Hit & Run is immediately under Journal and before Market Radar',()=>{
  const c=html.indexOf('REAL-TIME OPPORTUNITIES');
  assert.ok(a>0&&b>a&&c>b);
  assert.ok(/<\/section>\s*<!-- v1\.7 Intraday Hit & Run/.test(html));
- assert.ok(html.includes('src="/hitrun.js?v=1.7"'));
+ assert.ok(html.includes('src="/hitrun.js?v=1.8"'));
 });
 test('Hit & Run uses existing journal hook and never posts orders',()=>{
  const src=fs.readFileSync(path.join(base,'app.js'),'utf8');

@@ -209,6 +209,10 @@ function initializeControls(){
       renderHitRun();
     });
   }
+  byId('hitrunTopGainers').addEventListener('click',e=>{
+    const detail=e.target.closest('button[data-hitrun-detail]');
+    if(detail)openDetail(detail.dataset.hitrunDetail);
+  });
   byId('hitrunCards').addEventListener('click',e=>{
     const track=e.target.closest('button[data-hitrun-track]');
     if(track){trackTrade(track.dataset.hitrunTrack,'INTRADAY HIT & RUN');return;}
@@ -371,7 +375,38 @@ function renderHitRun(){
   byId('hitrunCount').textContent=`${sel.results.length}/${sel.eligible}`;
   byId('hitrunEligible').textContent=`${sel.eligible} coin lulus saringan · ${sel.accelerating} momentum sedang memecut`;
   byId('hitrunLive').textContent=data?.mock?'DEMO — harga bukan pasaran sebenar':fresh?'● KuCoin LIVE · 20s':'● Menunggu data segar';
-  if(!fresh){grid.replaceChildren(node('div','leaders-empty','Data KuCoin belum segar. Senarai Hit & Run disembunyikan sehingga ticker terkini diterima.'));return;}
+  const stages=byId('hitrunStages');
+  const top=byId('hitrunTopGainers');
+  if(!fresh){
+    grid.replaceChildren(node('div','leaders-empty','Data KuCoin belum segar. Senarai Hit & Run disembunyikan sehingga ticker terkini diterima.'));
+    stages.replaceChildren(node('div','leaders-empty','Tunggu data ticker segar untuk semakan penapis.'));
+    top.replaceChildren(node('div','leaders-empty','Tidak memaparkan harga lapuk.'));
+    return;
+  }
+  const diag=window.RadarHitRun?.diagnose(state.rows,hitrunSettings);
+  if(diag){
+    const steps=[['Pair spot USDT sah',diag.universe],['Naik ≥'+hitrunSettings.gain+'% (24j)',diag.gain],['+ Volume ≥'+currency(hitrunSettings.volume),diag.liquid],['+ Spread ≤'+hitrunSettings.spread.toFixed(2)+'%',diag.qualified]];
+    const items=steps.map(([label,count],i)=>{
+      const stage=node('div','hitrun-stage');
+      stage.append(node('span','hitrun-stage-label',label),node('strong','',String(count)));
+      if(i<steps.length-1)stage.append(node('span','hitrun-stage-arrow','→'));
+      return stage;
+    });
+    stages.replaceChildren(...items);
+    const table=node('div','hitrun-gainers-list');
+    if(!diag.top.length){table.append(node('p','hitrun-none','Tiada coin dengan kenaikan 24 jam positif dalam data ticker yang diterima.'));}
+    else for(const r of diag.top){
+      const row=node('div','hitrun-gainer-row');
+      row.append(node('strong','',r.symbol.replace('-USDT','')),
+        node('span','hitrun-gain-value',percent(r.change24h)),
+        node('span','',currency(r.volume)),
+        node('span','',num(r.spread)===null?'Spread tiada':r.spread.toFixed(3)+'%'),
+        node('span',r.diagnosticReason==='LULUS PENAPIS'?'hitrun-ok':'hitrun-reason',r.diagnosticReason));
+      const btn=node('button','hitrun-view-btn','Carta ↗');btn.type='button';btn.dataset.hitrunDetail=r.symbol;row.append(btn);table.append(row);
+    }
+    top.replaceChildren(table);
+  }
+
   if(!sel.results.length){grid.replaceChildren(node('div','leaders-empty',`Tiada coin mencapai +${hitrunSettings.gain}% dalam 24 jam dengan volume ${currency(hitrunSettings.volume)} dan spread ≤ 0.30%. Jangan longgarkan risiko semata-mata untuk mendapatkan signal.`));return;}
   const cards=sel.results.map((r,i)=>{
     const status=r.hitrun.status;

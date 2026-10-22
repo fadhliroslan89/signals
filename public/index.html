@@ -8,15 +8,15 @@
   <title>KuCoin Scalping Radar v1.7 — USDT Spot</title>
   <link rel="icon" type="image/svg+xml" href="/icon.svg" />
   <link rel="manifest" href="/manifest.webmanifest" />
-  <link rel="stylesheet" href="/styles.css?v=1.7" />
+  <link rel="stylesheet" href="/styles.css?v=1.8" />
   <script src="/top10.js?v=1.6" defer></script>
   <script src="/acceleration.js?v=1.6" defer></script>
   <script src="/planner.js?v=1.6" defer></script>
   <script src="/journal-core.js?v=1.6" defer></script>
   <script src="/journal-ui.js?v=1.6" defer></script>
   <script src="/entry-quality.js?v=1.6" defer></script>
-  <script src="/hitrun.js?v=1.7" defer></script>
-  <script src="/app.js?v=1.7" defer></script>
+  <script src="/hitrun.js?v=1.8" defer></script>
+  <script src="/app.js?v=1.8" defer></script>
 </head>
 <body>
   <div class="page">
@@ -139,6 +139,12 @@
             <span id="hitrunEligible" class="hitrun-eligible">Menunggu ticker...</span>
           </div>
           <div id="hitrunCards" class="hitrun-grid" aria-live="polite"><div class="leaders-empty">Menunggu data ticker KuCoin 24 jam...</div></div>
+          <div class="hitrun-diagnostics" aria-labelledby="hitrunDiagnosticTitle">
+            <div class="hitrun-subhead"><h3 id="hitrunDiagnosticTitle">Kenapa coin tidak lulus?</h3><span>Data ticker 24 jam • tidak perlu tunggu candle 1m</span></div>
+            <div id="hitrunStages" class="hitrun-stages" aria-live="polite">Mengira penapis...</div>
+            <div class="hitrun-subhead"><h3>Top Gainers 24 Jam <span class="hitrun-observe">PEMERHATIAN SAHAJA</span></h3><span>Coin teratas walaupun tidak cukup syarat Hit &amp; Run</span></div>
+            <div id="hitrunTopGainers" class="hitrun-gainers" aria-live="polite">Menunggu ticker...</div>
+          </div>
           <div class="leaders-footer">
             <span>Penapis tambahan: spread ≤ 0.30%; stablecoin dan token leverage dikecualikan. Data 1/5/15 minit mungkin belum tersedia semasa loading.</span>
             <strong>Coin sudah naik ≥10% tidak bermakna ia akan naik lagi. Elakkan mengejar candle; semak risiko pada carta.</strong>
