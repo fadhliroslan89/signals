@@ -356,13 +356,17 @@ function renderHunter(){
   const rows=[...signal,...setup].sort((a,b)=>b.breakout.rank-a.breakout.rank || b.score-a.score).slice(0,8);
   byId('hunterCount').textContent=String(rows.length);
   byId('hunterLive').textContent=latest.mock?'● DEMO / bukan signal sebenar':fresh?'● Data KuCoin LIVE':'● Menunggu data segar';
-  byId('hunterCoverage').textContent=`${h.monitored||0}/${latest.pairs||0} pair dipantau untuk OHLCV • update ±75s`;
+  byId('hunterCoverage').textContent=`${h.ready||0} candle siap / ${h.monitored||0} coin dipantau (maks 30) • sejarah ${latest.bootstrap?.done||0}/${latest.bootstrap?.total||0} • kemas kini ±75s`;
   byId('hunterSignals').textContent=`${signal.length} breakout · ${setup.length} setup`;
   const el=byId('hunterCards');
   if(!fresh){el.replaceChildren(node('div','leaders-empty','Data pasaran terganggu atau lapuk. Tidak memaparkan breakout.'));return;}
   if(!rows.length){
-    const warming=latest.bootstrap?.active || !(h.monitored>0);
-    el.replaceChildren(node('div','leaders-empty',warming?'Sejarah 1-minit sedang dimuatkan. Breakout Hunter akan aktif apabila bootstrap selesai.':'Tiada breakout + volume spike atau SETUP yang disahkan sekarang. Scanner terus mengemas kini candle untuk pair aktif.'));
+    const ready=h.ready||0;
+    const waiting=ready===0;
+    const msg=waiting
+      ? `Memuatkan candle untuk calon aktif (${latest.bootstrap?.done||0}/${latest.bootstrap?.total||0} pair). ${h.monitored||0} coin dipilih, tetapi belum ada candle lengkap dan segar.`
+      : `Candle siap: ${ready}/${h.monitored||0} coin. Tiada breakout + volume spike atau SETUP yang disahkan pada masa ini.`;
+    el.replaceChildren(node('div','leaders-empty',msg));
     return;
   }
   el.replaceChildren(...rows.map(hunterCard));

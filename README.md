@@ -144,3 +144,12 @@ The **Intraday Hit & Run** section remains directly below the Trading Journal an
 - With Render Free, background scans and browser alerts are not guaranteed while the service is asleep; server bootstrap restarts after sleep.
 
 Tests: `npm test`. Demo server: `npm run demo` (all demo values explicitly simulated).
+
+
+## v1.9.1 — Breakout Hunter startup hotfix
+
+- Bootstrap historical candles now prioritizes liquid and active 24h gainers, and publishes eligible OHLCV for Breakout Hunter progressively. No longer blocks breakout monitoring until all spot pairs are loaded.
+- While bootstrap runs, only 12 priority symbols are refreshed in rotation per 75 seconds; the normal 30-symbol refresh resumes after bootstrap.
+- The Breakout Hunter status now distinguishes **fresh/ready OHLCV** from the number of watched pairs.
+- `GET /api/status` includes `hunter.ready` and `hunter.monitored`.
+- Still no auto-trading; existing browser-local trade journal is unchanged.

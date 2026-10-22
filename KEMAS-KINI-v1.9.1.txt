@@ -1,0 +1,34 @@
+KUCOIN RADAR v1.9.1 — BREAKOUT HUNTER STARTUP FIX
+
+Punca yang diperbaiki:
+  Dalam v1.9, Breakout Hunter tidak memilih / refresh coin semasa bootstrap sejarah
+  787 pair sedang aktif. Ini menyebabkan 0/787 dipantau sehingga proses selesai.
+
+Perubahan:
+  - Dapatkan ticker sebelum mulakan bootstrap sejarah, kemudian dahulukan
+    coin Hit & Run dan pair ber-volume tinggi untuk candle awal.
+  - Setiap ~10 coin yang selesai diambil candle, promosikan calon yang sudah
+    mempunyai data ke Breakout Hunter, tanpa menunggu 787/787.
+  - Refresh candle prioriti secara berputar dalam batch 12 coin setiap 75 saat
+    semasa bootstrap; selepas siap gunakan maks 30 coin seperti asal.
+  - Paparkan "candle siap / coin dipantau" dan kemajuan bootstrap dengan jelas.
+  - Endpoint /api/status mempunyai hunter.ready, selain hunter.monitored.
+
+Pemasangan:
+  1. Backup JSON Trading Journal terlebih dahulu.
+  2. Extract ZIP Update dan upload semua kandungannya ke root repository GitHub
+     signals (jangan upload ZIP terus / jangan tambah folder luar).
+  3. Pastikan server.js, package.json, lib/priority.js, public/app.js
+     dan test/priority.test.js berada pada lokasi tepat.
+  4. Commit changes; Render Auto-Deploy akan berjalan jika diaktifkan.
+  5. Tunggu status Render Live, kemudian Cmd+Shift+R pada browser.
+  6. Semak Breakout Hunter. Candle siap akan meningkat apabila ada OHLCV
+     berkualiti, meskipun sejarah keseluruhan belum 100%.
+  7. Jika masih 0, buka https://signals-ax4g.onrender.com/api/status
+     dan semak hunter.ready, hunter.monitored, bootstrap.done, bootstrap.failures,
+     hunter.failures. Jangan dedahkan sebarang token API.
+
+Nota:
+  Mod DEMO dan 65 ujian automatik lulus. Belum diverifikasi pada data KuCoin
+  sebenar selepas update Render. Tiada perubahan pada format simpanan journal.
+  Ini alat saringan, BUKAN pelaksanaan order atau jaminan BUY/TP.

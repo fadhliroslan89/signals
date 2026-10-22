@@ -11,6 +11,7 @@ const { DEFAULTS, rowFromTicker, number } = require('./lib/scanner');
 const { evaluate: evaluateQuality } = require('./public/entry-quality');
 const { candlesFromKucoin, analyze: breakoutAnalyze } = require('./lib/breakout');
 const { isExcluded: isHitrunExcluded } = require('./public/hitrun');
+const { prioritizedSymbols } = require('./lib/priority');
 const PORT = Number(process.env.PORT || 3000);
 const HOST = process.env.HOST || '0.0.0.0';
 const MOCK = process.env.MOCK_KUCOIN === '1';
@@ -21,6 +22,7 @@ const BOOTSTRAP_SPACING_MS = 360; // ~2.8 candle requests/sec; do not hammer the
 const publicDir = path.join(__dirname, 'public');
 const HUNTER_LIMIT = 30;
 const HUNTER_REFRESH_MS = 75_000;
+const HUNTER_BOOTSTRAP_BATCH = 12; // Keep KuCoin requests modest while bulk history loads.
 const TELEGRAM_TOKEN = process.env.TELEGRAM_BOT_TOKEN || '';
 const TELEGRAM_CHAT = process.env.TELEGRAM_CHAT_ID || '';
 const telegramEnabled = !!(TELEGRAM_TOKEN && TELEGRAM_CHAT) && !MOCK;
@@ -34,6 +36,7 @@ const state = {
   hunterLastRefresh: 0,
   hunterFailures: 0,
   hunterSyncing: false,
+  hunterCursor: 0,
   rows: [],
   lastUpdate: 0,
   symbolsUpdated: 0,
@@ -80,10 +83,9 @@ async function symbolsRefresh() {
   const listed = MOCK ? mockSymbols : await getKucoin('/api/v2/symbols');
   const allowed = new Set(listed.filter(s => s.quoteCurrency === 'USDT' && s.enableTrading === true && s.symbol.endsWith('-USDT') && !s.st && !s.callauctionIsEnabled).map(s => s.symbol));
   if (!allowed.size) throw new Error('Tiada simbol KuCoin USDT aktif dalam respons.');
-  const wasEmpty = state.allowed.size === 0;
   state.allowed = allowed;
   state.symbolsUpdated = Date.now();
-  if (wasEmpty) queueBootstrap();
+  // Start the history load after the first ticker poll, so liquid pairs load first.
 }
 function appendPrice(symbol, time, price) {
   if (!(price > 0)) return;
@@ -128,15 +130,32 @@ function hunterCandidates(){
   const chosen=[...gainers.slice(0,12),...liquid];
   return [...new Set(chosen.map(r=>r.symbol))].slice(0,HUNTER_LIMIT);
 }
+function promoteBootstrapHunter() {
+  // The bootstrap already fetched real OHLCV. Make it available to Breakout Hunter
+  // immediately, without issuing more candle requests or waiting for 787 pairs.
+  if (state.hunterSyncing) return;
+  const chosen = hunterCandidates();
+  const previous = [...state.hunterWatched];
+  if (chosen.length !== previous.length || chosen.some((s, i) => s !== previous[i])) {
+    state.hunterWatched = new Set(chosen);
+    computeRows();
+  }
+}
 async function refreshHunter(){
-  if(state.hunterSyncing || state.bootstrap.active || !state.allowed.size)return;
+  if(state.hunterSyncing || !state.allowed.size)return;
   state.hunterSyncing=true;
   try{
     const chosen=hunterCandidates();
     state.hunterWatched=new Set(chosen);
     computeRows();
-    for(let i=0;i<chosen.length;i++){
-      const symbol=chosen[i];
+    // Bootstrap works through every market pair. Rotate through a small priority batch
+    // concurrently instead of waiting for the entire bootstrap to finish.
+    const count=state.bootstrap.active ? Math.min(HUNTER_BOOTSTRAP_BATCH,chosen.length) : chosen.length;
+    const start=chosen.length ? state.hunterCursor % chosen.length : 0;
+    const refreshSymbols=Array.from({length:count},(_,i)=>chosen[(start+i)%chosen.length]);
+    state.hunterCursor=chosen.length ? (start+count)%chosen.length : 0;
+    for(let i=0;i<refreshSymbols.length;i++){
+      const symbol=refreshSymbols[i];
       try{
         if(MOCK){const index=mockSymbols.findIndex(s=>s.symbol===symbol); if(index>=0)mockCandles(symbol,index,Date.now());}
         else {
@@ -155,7 +174,7 @@ async function refreshHunter(){
 async function queueBootstrap() {
   if (state.bootstrap.active) return;
   state.bootstrap.active = true;
-  const symbols = [...state.allowed];
+  const symbols = prioritizedSymbols(state.allowed, state.tickers);
   state.bootstrap.total = symbols.length;
   state.bootstrap.done = 0;
   state.bootstrap.failures = 0;
@@ -178,7 +197,10 @@ async function queueBootstrap() {
       if (String(err.message).includes('429')) await pause(9_000);
     }
     state.bootstrap.done++;
-    if (i % 20 === 0) computeRows();
+    if (i % 10 === 0 || i === symbols.length - 1) {
+      computeRows();
+      promoteBootstrapHunter();
+    }
     await pause(MOCK ? 2 : BOOTSTRAP_SPACING_MS);
   }
   state.bootstrap.active = false;
@@ -249,6 +271,13 @@ async function poll() {
     state.lastUpdate = now;
     state.error = null;
     computeRows();
+    if (state.bootstrap.total === 0 && state.allowed.size) {
+      // Do not await: ticker polling remains responsive while candles load.
+      queueBootstrap().catch(err => {
+        state.bootstrap.active = false;
+        console.error('Bootstrap failed:', err.message);
+      });
+    }
     if (!MOCK) processAlerts();
   } catch (err) {
     state.error = err.message;
@@ -275,9 +304,9 @@ const server = http.createServer((req, res) => {
   if (req.method !== 'GET' && req.method !== 'HEAD') return json(res,{error:'Method not allowed'},405);
   const url = new URL(req.url || '/', 'http://localhost');
   if (url.pathname === '/api/status') return json(res,{
-    strategyVersion:'1.9', updatedAt:state.lastUpdate, now:Date.now(), pairs:state.allowed.size, fetched:state.rows.length,
+    strategyVersion:'1.9.1', updatedAt:state.lastUpdate, now:Date.now(), pairs:state.allowed.size, fetched:state.rows.length,
     bootstrap:state.bootstrap, error:state.error, mock:MOCK, telegramEnabled, defaults:cfg,
-    hunter:{monitored:state.hunterWatched.size,limit:HUNTER_LIMIT,lastRefreshed:state.hunterLastRefresh,failures:state.hunterFailures},
+    hunter:{monitored:state.hunterWatched.size,ready:state.rows.filter(r => r.breakout?.coverage === 'READY').length,limit:HUNTER_LIMIT,lastRefreshed:state.hunterLastRefresh,failures:state.hunterFailures},
     alerts:state.alertLog.slice(0,12), rows:state.rows,
   });
   if (url.pathname === '/api/history') {
