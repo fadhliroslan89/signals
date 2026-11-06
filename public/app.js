@@ -620,6 +620,8 @@ function render(){
   bootNote.classList.toggle('hidden',!pending&&!data.mock&&!!data.updatedAt);
   bootNote.textContent=data.mock?'MOD DEMO: Ini data ujian, BUKAN harga KuCoin semasa. Matikan MOCK_KUCOIN untuk live.':pending?`Sejarah 1-minit sedang disediakan: ${done}/${total} pair (${Math.round(done/total*100)}%). Pair belum selesai akan ditanda DATA. Kegagalan: ${boot.failures||0}.`:'Menunggu data pasaran KuCoin...';
   byId('tgChip').textContent=data.telegramEnabled?'TELEGRAM ON':'BROWSER';
+  const tgHeader=byId('tgHeaderStatus');
+  if(tgHeader){tgHeader.textContent=data.telegramEnabled?(data.telegram?.lastError?'TELEGRAM ERROR':`TELEGRAM ON • ${data.telegram?.mode==='both'?'70+ & BUY':'BUY'}`):'TELEGRAM OFF';tgHeader.classList.toggle('tg-error',!!data.telegram?.lastError);tgHeader.title=data.telegram?.lastError||'Telegram memerlukan konfigurasi dalam Render Environment';}
   renderTop70();renderQuality70();renderLeaders();renderHunter();renderHitRun();renderRows();renderAlerts();
   window.RadarJournalUI?.updateMarket(state.rows,{updatedAt:data.updatedAt,mock:data.mock,error:data.error});
 }

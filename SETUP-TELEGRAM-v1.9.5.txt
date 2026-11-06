@@ -1,0 +1,52 @@
+KUCOIN RADAR v1.9.5 - CARA AKTIFKAN TELEGRAM
+=========================================
+
+1. Buat bot:
+   Dalam Telegram buka https://t.me/BotFather, tekan Start.
+   Taip /newbot, pilih nama dan username yang berakhir dengan bot.
+   Simpan token yang diberi SECARA RAHSIA. Jika sudah ada bot sendiri,
+   boleh guna bot sedia ada (asalkan bot itu tidak dipadam).
+
+2. Dapatkan Chat ID:
+   Buka bot milik sendiri, tekan START, hantar mesej "test".
+   Pada MacBook, dalam folder update yang telah diekstrak:
+     bash scripts_chat_id.sh
+   Ikut arahan. Script tidak simpan token dalam fail.
+   Catat CHAT ID dan jangan sebarkan.
+   Alternatif rasmi: kaedah getUpdates dalam dokumen Bot API Telegram.
+   Jika bot sedang menggunakan webhook, getUpdates tidak berfungsi;
+   gunakan bot baharu atau konfigurasi yang sedia ada.
+
+3. Render > signals > Environment > Add Environment Variable:
+   TELEGRAM_BOT_TOKEN = token daripada BotFather
+   TELEGRAM_CHAT_ID = nombor chat ID
+   TELEGRAM_ALERT_MODE = both
+   TELEGRAM_STARTUP_TEST = 1
+   Tekan Save, rebuild and deploy (atau Save and deploy).
+   JANGAN masukkan token dalam GitHub, gambar screenshot atau mesej chat.
+
+4. Selepas status Render LIVE, bot sepatutnya menghantar mesej:
+   "KuCoin Radar — Telegram berjaya disambungkan".
+   Jika tak ada, buka https://signals-ax4g.onrender.com/api/status
+   dan semak telegram.lastError (JANGAN kongsi token).
+
+5. PENTING: Selepas ujian BERJAYA, tukar TELEGRAM_STARTUP_TEST = 0
+   supaya mesej ujian tidak diulang setiap kali Render bangun / restart.
+
+MOD ALERT
+- both: beri notifikasi BUY disahkan ≥70 dan coin BARU naik masuk
+  senarai 70+ (dilabel "BUKAN SIGNAL BUY").
+- buy: BUY disahkan ≥70 sahaja.
+- Tiada alert untuk semua coin yang telah sedia ada pada permulaan server;
+  selepas sejarah awal tersedia, alert pemerhatian akan keluar untuk coin
+  yang BARU mencapai skor 70+. Signal BUY yang sah boleh terus dihantar.
+- Maksimum 3 mesej setiap pusingan, 18 mesej sejam, 20 minit cooldown
+  BUY dan 60 minit untuk pemerhatian. Rekod antispam hanya dalam RAM.
+- 70/100 bukan win rate 70%; semak order book dan risiko sendiri.
+
+RENDER FREE
+- Server akan tidur selepas 15 minit tanpa trafik masuk.
+- Ketika tidur Telegram tidak boleh menerima alert daripada scanner.
+- Bila bangun, server perlu memuatkan semula sejarah. Sistem tidak
+  menjamin penghantaran alert 24/7 atau semua signal yang terlepas.
+- Untuk pemerhatian berterusan, perlu servis sentiasa aktif.

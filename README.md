@@ -1,3 +1,10 @@
+## v1.9.5 — Notifikasi Telegram untuk BUY disahkan & coin baru skor 70+
+
+Buka `SETUP-TELEGRAM-v1.9.5.txt` untuk panduan BotFather, Chat ID dan Render Environment.
+Default `TELEGRAM_ALERT_MODE=both` menghantar **BUY disahkan** serta **pemerhatian baharu 70+ (jelas BUKAN BUY)**. Token sentiasa hanya di server. `TELEGRAM_STARTUP_TEST=1` menghantar mesej ujian setiap kali server mula hidup; tukar ke `0` selepas berjaya. Render Free boleh tidur; **tiada jaminan 24/7**.
+
+---
+
 # KuCoin Radar v1.9.3 — Tab Utama Semua Skor 70+
 
 Pada buka kali pertama website, tab **⭐ Semua Skor 70+** dipilih. Ia menyenaraikan **semua** coin dengan skor Market ≥70 atau skor Breakout ≥70 (bukan hanya enam kad). Coin ditunjukkan sekali walaupun kedua-dua skor lulus. BUY disahkan masih memerlukan syarat breakout dan entry; coin WATCH/AVOID hanya pemerhatian, bukan arahan beli. Carian, susunan, Detail dan + Pantau Trade tersedia. Tab **📊 Dashboard Penuh** membawa semula semua panel asal. Setiap kali laman dibuka, tab 70+ akan muncul dahulu.

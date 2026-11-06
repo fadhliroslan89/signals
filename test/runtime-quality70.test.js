@@ -33,8 +33,8 @@ test('loaded Quality70 module retains original score gate',()=>{
   assert.equal(x.gateTest({status:'BUY'},69).status,'WATCH');
 });
 test('versioned quality script loads ahead of app script and warning exists on both tabs',()=>{
-  const first=html.indexOf('src="/quality70.js?v=1.9.4"');
-  const last=html.indexOf('src="/app.js?v=1.9.4"');
+  const first=html.search(/src="\/quality70\.js\?v=[0-9.]+"/);
+  const last=html.search(/src="\/app\.js\?v=[0-9.]+"/);
   assert.ok(first>0 && last>first);
   assert.ok(html.includes('id="runtimeWarning"'));
   assert.ok(html.includes('id="top70View"'));

@@ -9,9 +9,11 @@ const path = require('node:path');
 const { URL } = require('node:url');
 const { DEFAULTS, rowFromTicker, number } = require('./lib/scanner');
 const { evaluate: evaluateQuality } = require('./public/entry-quality');
+const { gate: gateQuality70, MIN: MIN_SIGNAL_SCORE } = require('./public/quality70');
 const { candlesFromKucoin, analyze: breakoutAnalyze } = require('./lib/breakout');
 const { isExcluded: isHitrunExcluded } = require('./public/hitrun');
 const { prioritizedSymbols } = require('./lib/priority');
+const { createTelegramEngine, safeMode } = require('./lib/telegram-alerts');
 const PORT = Number(process.env.PORT || 3000);
 const HOST = process.env.HOST || '0.0.0.0';
 const MOCK = process.env.MOCK_KUCOIN === '1';
@@ -26,6 +28,9 @@ const HUNTER_BOOTSTRAP_BATCH = 12; // Keep KuCoin requests modest while bulk his
 const TELEGRAM_TOKEN = process.env.TELEGRAM_BOT_TOKEN || '';
 const TELEGRAM_CHAT = process.env.TELEGRAM_CHAT_ID || '';
 const telegramEnabled = !!(TELEGRAM_TOKEN && TELEGRAM_CHAT) && !MOCK;
+const TELEGRAM_MODE = safeMode(process.env.TELEGRAM_ALERT_MODE || 'both');
+const TELEGRAM_STARTUP_TEST = process.env.TELEGRAM_STARTUP_TEST === '1';
+let telegramStartupTestSent = false;
 const cfg = { ...DEFAULTS };
 const state = {
   allowed: new Set(),
@@ -219,7 +224,7 @@ function computeRows() {
         r.hitrunOhlcv=(r.change24h>=9.5 && r.volume>=900_000)
           ?breakoutAnalyze(state.candles.get(r.symbol),now,{minVolume:0,maxSpread:100},r)
           :{coverage:'NOT_APPLICABLE'};
-        r.entryQuality=evaluateQuality(r,cfg,now);
+        r.entryQuality=gateQuality70(evaluateQuality(r,cfg,now),r.score);
         r.status=r.entryQuality.status;
       }
       return r;
@@ -227,33 +232,45 @@ function computeRows() {
     .sort((a,b) => b.score - a.score || b.volume - a.volume);
 }
 async function telegram(message) {
-  if (!telegramEnabled) return;
+  if (!telegramEnabled) throw new Error('Telegram not configured');
   const response = await fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`, {
     method: 'POST',
-    headers: {'content-type':'application/json'},
-    body: JSON.stringify({chat_id: TELEGRAM_CHAT, text:message, disable_web_page_preview:true}),
-    signal: AbortSignal.timeout(9000)
+    headers: { 'content-type':'application/json' },
+    body: JSON.stringify({ chat_id: TELEGRAM_CHAT, text: message, link_preview_options:{is_disabled:true} }),
+    signal: AbortSignal.timeout(10_000),
   });
-  if (!response.ok) throw new Error(`Telegram HTTP ${response.status}`);
+  const body = await response.json().catch(() => null);
+  if (!response.ok || !body?.ok) throw new Error(`Telegram HTTP ${response.status}: ${String(body?.description || 'sendMessage rejected').slice(0,120)}`);
+  return body.result;
 }
-function processAlerts() {
+// Preserve the existing recent BUY activity list in the web dashboard even
+// when Telegram credentials are not configured. Sending to Telegram is separate.
+function recordBuyActivity() {
   const now = Date.now();
-  let sent = 0;
   for (const r of state.rows) {
-    if (r.status !== 'BUY') continue;
-    if (sent >= 4) break;
+    if (r.status !== 'BUY' || r.score < MIN_SIGNAL_SCORE) continue;
     const last = state.alertState.get(r.symbol) || 0;
-    if (now - last < cfg.cooldownMinutes*60_000) continue;
+    if (now - last < cfg.cooldownMinutes * 60_000) continue;
     state.alertState.set(r.symbol, now);
-    const alert = {at: now, symbol:r.symbol, price:r.price, m15:r.m15, m30:r.m30, score:r.score};
-    state.alertLog.unshift(alert);
+    state.alertLog.unshift({ at:now, symbol:r.symbol, price:r.price, m15:r.m15, m30:r.m30, score:r.score });
     state.alertLog.length = Math.min(50, state.alertLog.length);
-    sent++;
-    if (telegramEnabled) {
-      const message = `🔔 KUCOIN SCALPING RADAR (signal kajian, bukan nasihat beli)\n${r.symbol} • BUY\nHarga: ${r.price}\n15m: ${r.m15.toFixed(2)}% | 30m: ${r.m30.toFixed(2)}%\nSpread: ${r.spread.toFixed(3)}%\nHad pemerhatian: 30 min (review manual). Sasaran ilustrasi: +${cfg.target}% | SL: -${cfg.stop}%\nSemak sebelum entry: https://www.kucoin.com/trade/${r.symbol}`;
-      telegram(message).catch(e => console.error('Telegram gagal:', e.message));
-    }
   }
+}
+const telegramEngine = createTelegramEngine({ send: telegram, mode: TELEGRAM_MODE });
+async function processTelegram() {
+  if (!telegramEnabled || !state.lastUpdate || state.error) return;
+  if (TELEGRAM_STARTUP_TEST && !telegramStartupTestSent) {
+    telegramStartupTestSent = true; // Send once per process start; never loop on bad token.
+    try {
+      await telegram(`✅ KuCoin Radar — Telegram berjaya disambungkan.\nMod: ${TELEGRAM_MODE === 'both' ? 'BUY disahkan + RADAR 70+ (pemerhatian)' : 'BUY disahkan sahaja'}\nServer aktif pada ${new Date().toLocaleString('en-MY',{timeZone:'Asia/Kuala_Lumpur'})} MYT.\nIni mesej UJIAN, bukan signal trading.`);
+      telegramEngine.recordTest();
+    } catch (err) { telegramEngine.recordTestFailure(err); console.warn('Telegram startup test gagal:', err.message); }
+  }
+  // After 90 candles have been prepared, create observation baseline; newly
+  // crossing 70+ may alert. Confirmed BUY does not wait for the bootstrap.
+  const ready = !!state.bootstrap.total && state.bootstrap.done >= Math.min(90, state.bootstrap.total);
+  const result = await telegramEngine.tick(state.rows, { ready });
+  if (result?.error) console.warn('Telegram alert:', result.error);
 }
 async function poll() {
   if (state.syncing) return;
@@ -278,7 +295,10 @@ async function poll() {
         console.error('Bootstrap failed:', err.message);
       });
     }
-    if (!MOCK) processAlerts();
+    if (!MOCK) {
+      recordBuyActivity();
+      if (telegramEnabled) processTelegram().catch(err => console.warn('Telegram:', err.message));
+    }
   } catch (err) {
     state.error = err.message;
     console.error('KuCoin fetch:', err.message);
@@ -304,8 +324,8 @@ const server = http.createServer((req, res) => {
   if (req.method !== 'GET' && req.method !== 'HEAD') return json(res,{error:'Method not allowed'},405);
   const url = new URL(req.url || '/', 'http://localhost');
   if (url.pathname === '/api/status') return json(res,{
-    strategyVersion:'1.9.1', updatedAt:state.lastUpdate, now:Date.now(), pairs:state.allowed.size, fetched:state.rows.length,
-    bootstrap:state.bootstrap, error:state.error, mock:MOCK, telegramEnabled, defaults:cfg,
+    strategyVersion:'1.9.5', updatedAt:state.lastUpdate, now:Date.now(), pairs:state.allowed.size, fetched:state.rows.length,
+    bootstrap:state.bootstrap, error:state.error, mock:MOCK, telegramEnabled, telegram: { configured: telegramEnabled, ...telegramEngine.status() }, defaults:cfg,
     hunter:{monitored:state.hunterWatched.size,ready:state.rows.filter(r => r.breakout?.coverage === 'READY').length,limit:HUNTER_LIMIT,lastRefreshed:state.hunterLastRefresh,failures:state.hunterFailures},
     alerts:state.alertLog.slice(0,12), rows:state.rows,
   });

@@ -1,0 +1,25 @@
+KUCOIN RADAR v1.9.5 — TELEGRAM ALERTS
+====================================
+Apa yang baharu:
+- Telegram BUY DISAHKAN (Market ≥70 + semua penapis lulus)
+- Telegram RADAR 70+ untuk coin baru melepasi skor 70, dilabel bukan BUY
+- Pilihan mod `both` atau `buy` melalui Render Environment
+- Anti-spam, cooldown, had mesej/jam dan penolakan signal lapuk
+- Status TELEGRAM ON / ERROR pada header dan API /api/status
+- Mod mesej UJIAN selepas Render deploy bila TELEGRAM_STARTUP_TEST=1
+- Log aktiviti BUY dalam dashboard masih dikekalkan
+- Tiada token dalam GitHub atau kod public
+
+CARA UPDATE:
+1. Trading Journal -> Backup JSON.
+2. Extract ZIP GitHub Update, drag SEMUA fail/folder ke root repo GitHub signals.
+3. Commit changes; Render auto-deploy hingga LIVE.
+4. Rujuk SETUP-TELEGRAM-v1.9.5.txt untuk BotFather, Chat ID, tetapan Render.
+5. TELEGRAM_STARTUP_TEST=1 untuk semak mesej. Selepas berjaya tukar ke 0.
+6. Jika perlu semak /api/status -> telegram.lastError (tidak mengandungi token).
+
+NOTA:
+- Tidak buat order trading, tiada API key KuCoin diperlukan.
+- Hosting Render Free tidur selepas 15 minit tiada trafik; alert tidak 24/7.
+- Token/Chat ID JANGAN dihantar dalam screenshot, GitHub atau mesej chat.
+- Skor 70 bukan 70% win rate.
