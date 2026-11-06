@@ -335,6 +335,86 @@ function serveFile(res, pathname) {
     res.end(contents);
   });
 }
+// === KuCoin Radar live OHLCV chart: public spot candles, no exchange orders ===
+const chartIntervals = Object.freeze({ '1m':['1min',60], '5m':['5min',300], '15m':['15min',900], '30m':['30min',1800], '1h':['1hour',3600], '4h':['4hour',14400] });
+const chartCache = new Map();
+const chartInflight = new Map();
+const CHART_CACHE_MS = 15_000;
+function normalizeChartCandles(raw) {
+  if (!Array.isArray(raw)) return [];
+  return raw.map(x => {
+    if (!Array.isArray(x) || x.length < 6) return null;
+    const [t,o,c,h,l,v] = x.map(Number);
+    if (![t,o,c,h,l,v].every(Number.isFinite) || t <= 0 || o <= 0 || c <= 0 || l <= 0 || h <= 0 || v < 0 || h < Math.max(o,c,l) || l > Math.min(o,c,h)) return null;
+    return {time:t*1000,open:o,high:h,low:l,close:c,volume:v};
+  }).filter(Boolean).sort((a,b)=>a.time-b.time).slice(-115);
+}
+function fakeChartCandles(symbol,seconds) {
+  const n=105, at=Math.floor(Date.now()/(1000*seconds))*(1000*seconds);
+  const last=number(state.tickers.get(symbol)?.last)||10;
+  const seed=symbol.split('').reduce((a,ch)=>a+ch.charCodeAt(0),0);
+  const out=[];
+  for(let i=0;i<n;i++){
+    const ratio=1+0.015*Math.sin((i+seed)/11)+0.004*Math.sin((i+seed)/3);
+    const previous=1+0.015*Math.sin((i+seed-1)/11)+0.004*Math.sin((i+seed-1)/3);
+    const close=last*ratio, open=last*previous;
+    out.push({time:at-(n-1-i)*seconds*1000,open,close,high:Math.max(open,close)*1.002,low:Math.min(open,close)*0.998,volume:100+((seed+i*37)%220)});
+  }
+  return out;
+}
+async function serveChart(res,url) {
+  const symbol=String(url.searchParams.get('symbol')||'').trim().toUpperCase();
+  const timeframe=String(url.searchParams.get('tf')||'30m').trim();
+  if(!/^[A-Z0-9]{1,20}-USDT$/.test(symbol) || !Object.prototype.hasOwnProperty.call(chartIntervals,timeframe))
+    return json(res,{error:'Pair atau timeframe tidak sah.'},400);
+  if(!state.allowed.has(symbol)) return json(res,{error:'Pair tidak aktif / belum tersedia.'},404);
+  const ticker=state.tickers.get(symbol);
+  const lastPrice=number(ticker?.last);
+  const ageMs=Date.now()-state.lastUpdate;
+  if(!(lastPrice>0) || !state.lastUpdate || ageMs>90_000)
+    return json(res,{error:'Data pasaran belum sedia atau terlalu lama.'},503);
+  const cacheKey=symbol+':'+timeframe, now=Date.now();
+  let hit=chartCache.get(cacheKey);
+  if(!hit || now-hit.fetchedAt>=CHART_CACHE_MS) {
+    try {
+      let task=chartInflight.get(cacheKey);
+      if(!task) {
+        task=(async()=>{
+          const [type,seconds]=chartIntervals[timeframe];
+          let candles;
+          if(MOCK) candles=fakeChartCandles(symbol,seconds);
+          else {
+            const endAt=Math.floor(Date.now()/1000);
+            const startAt=endAt-seconds*125;
+            const raw=await getKucoin(`/api/v1/market/candles?type=${type}&symbol=${encodeURIComponent(symbol)}&startAt=${startAt}&endAt=${endAt}`);
+            candles=normalizeChartCandles(raw);
+          }
+          if(!candles.length) throw new Error('Tiada candle untuk pair atau timeframe ini.');
+          const fresh={candles,fetchedAt:Date.now()};
+          chartCache.set(cacheKey,fresh);
+          if(chartCache.size>240){ const first=chartCache.keys().next().value; chartCache.delete(first); }
+          return fresh;
+        })();
+        chartInflight.set(cacheKey,task);
+        task.finally(()=>chartInflight.delete(cacheKey)).catch(()=>{});
+      }
+      hit=await task;
+    } catch (err) {
+      if(!hit || Date.now()-hit.fetchedAt>120_000) return json(res,{error:'Gagal mengambil candle KuCoin: '+String(err.message||'').slice(0,100)},503);
+    }
+  }
+  return json(res,{
+    symbol,timeframe,candles:hit.candles,
+    lastPrice,ask:number(ticker?.sell)||null,
+    latestStatus:state.rows.find(r=>r.symbol===symbol)?.status||'DATA',
+    lastPriceUpdatedAt:state.lastUpdate,ageSeconds:Math.floor(ageMs/1000),
+    chartFetchedAt:hit.fetchedAt,chartAgeSeconds:Math.floor((Date.now()-hit.fetchedAt)/1000),
+    mock:MOCK,source:MOCK?'DEMO':'KuCoin Spot public OHLCV',
+    note:'Candle terkini masih terbentuk. Kemas kini sekitar 20s; bukan tick-by-tick atau harga eksekusi.'
+  });
+}
+// === End chart module ===
+
 const server = http.createServer((req, res) => {
   if (req.method !== 'GET' && req.method !== 'HEAD') return json(res,{error:'Method not allowed'},405);
   const url = new URL(req.url || '/', 'http://localhost');
@@ -368,6 +448,7 @@ const server = http.createServer((req, res) => {
       note:'Last traded price, bukan harga execution yang dijamin.'
     });
   }
+  if (url.pathname === '/api/chart') { void serveChart(res,url); return; }
   if (url.pathname === '/api/history') {
     const symbol = url.searchParams.get('symbol') || '';
     if (!state.allowed.has(symbol)) return json(res,{error:'Symbol not found'},404);
