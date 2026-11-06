@@ -1,0 +1,35 @@
+/* KuCoin Radar live chart v2.0. Scoped to #radarCandleChart. */
+#radarCandleChart{box-sizing:border-box;width:100%;margin:20px 0;padding:16px 16px 13px;border:1px solid #24445b;background:#081724;border-radius:18px;color:#e4eff9;font:500 13px/1.5 system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;overflow:hidden}
+#radarCandleChart *{box-sizing:border-box}
+#radarCandleChart .kchart-head{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+#radarCandleChart .kchart-title{display:flex;flex-direction:column;gap:2px}
+#radarCandleChart .kchart-title strong{letter-spacing:.11em;color:#27dabc;font-size:12px}
+#radarCandleChart .kchart-desc{color:#95b1c5;font-size:11px}
+#radarCandleChart .kchart-fresh{color:#a2c3d3;border:1px solid #2a495c;padding:5px 9px;background:#11263a;border-radius:999px;font-size:11px}
+#radarCandleChart .kchart-price-row{display:flex;align-items:baseline;gap:13px;flex-wrap:wrap;margin-top:13px}
+#radarCandleChart .kchart-price{font-size:clamp(25px,4vw,36px);font-weight:800;letter-spacing:-.035em}
+#radarCandleChart .kchart-change{font-weight:750;font-size:15px}
+#radarCandleChart .kchart-change.up{color:#23d7ae}
+#radarCandleChart .kchart-change.down{color:#f36b80}
+#radarCandleChart .kchart-24h{margin-left:auto;font-size:11px;color:#a3bed0}
+#radarCandleChart .kchart-controls{display:flex;flex-wrap:wrap;gap:5px;align-items:center;margin:13px 0 8px}
+#radarCandleChart button.kchart-tf,#radarCandleChart button.kchart-refresh{font:700 12px system-ui,sans-serif;background:transparent;color:#95b3c7;border:1px solid transparent;outline-offset:2px;cursor:pointer;padding:6px 10px;border-radius:8px;min-height:32px}
+#radarCandleChart button.kchart-tf:hover,#radarCandleChart button.kchart-refresh:hover{border-color:#366277;color:#f6fbff;background:#102b40}
+#radarCandleChart button.kchart-tf.active{background:#1c514b;color:#2fe0ba;border-color:#257962}
+#radarCandleChart button.kchart-refresh{margin-left:auto;background:#122c3b;border-color:#274659;color:#dbeef6}
+#radarCandleChart button.kchart-refresh:disabled{opacity:.65;cursor:wait}
+#radarCandleChart .kchart-legend{display:flex;gap:16px;flex-wrap:wrap;font-size:11px;margin:5px 0 0}
+#radarCandleChart .kchart-legend b{font-weight:700}
+#radarCandleChart .kchart-ma5{color:#eeb943}
+#radarCandleChart .kchart-ma10{color:#57a7ff}
+#radarCandleChart .kchart-ma20{color:#b679ff}
+#radarCandleChart .kchart-canvas-wrap{position:relative;min-height:340px}
+#radarCandleChart .kchart-canvas{width:100%;height:400px;display:block;touch-action:pan-y;cursor:crosshair}
+#radarCandleChart .kchart-tooltip{position:absolute;pointer-events:none;background:#132d40;border:1px solid #416879;border-radius:9px;padding:8px 11px;min-width:154px;font-size:11px;line-height:1.6;color:#dbeaf7;box-shadow:0 6px 20px #0009;z-index:1}
+#radarCandleChart .kchart-tooltip[hidden]{display:none}
+#radarCandleChart .kchart-foot{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;color:#9bb7ca;margin:3px 0 8px;font-size:12px}
+#radarCandleChart .kchart-status[data-status="BUY"]{color:#27dabc}
+#radarCandleChart .kchart-status[data-status="AVOID"]{color:#ff9aab}
+#radarCandleChart .kchart-notice{border-top:1px solid #1e4054;padding-top:10px;color:#799eb4;font-size:11px}
+#radarCandleChart [hidden]{display:none!important}
+@media(max-width:650px){#radarCandleChart{padding:12px 8px;border-radius:12px;margin:14px 0}#radarCandleChart .kchart-canvas{height:340px}#radarCandleChart .kchart-24h{width:100%;margin:0}#radarCandleChart .kchart-legend{gap:8px;font-size:10px}#radarCandleChart button.kchart-tf{padding:6px 7px;font-size:11px}#radarCandleChart .kchart-title strong{font-size:11px}}
