@@ -14,7 +14,7 @@ try { settings = JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}'); } catch
 let favoriteList = [];
 try { favoriteList = JSON.parse(localStorage.getItem(FAVORITES_KEY) || '[]'); } catch {}
 const favorites = new Set(Array.isArray(favoriteList) ? favoriteList : []);
-const state = {rows:[],latest:null,filter:'ALL',search:'',sort:'rank',shown:50,initial:true, previous:new Map(),previousEarly:new Map(),lastEarly:new Map(),previousBreakout:new Map(),lastBreakout:new Map(), alertEnabled:false,earlyEnabled:false,breakoutEnabled:false,sound:false, localAlerts:[], audio:null,modalSymbol:null};
+const state = {top70Filter:'ALL',top70Query:'',top70Sort:'best',activeView:'top70',rows:[],latest:null,filter:'ALL',search:'',sort:'rank',shown:50,initial:true, previous:new Map(),previousEarly:new Map(),lastEarly:new Map(),previousBreakout:new Map(),lastBreakout:new Map(), alertEnabled:false,earlyEnabled:false,breakoutEnabled:false,sound:false, localAlerts:[], audio:null,modalSymbol:null};
 try { const old=JSON.parse(localStorage.getItem(EARLY_COOLDOWN_KEY)||'[]'); if(Array.isArray(old))state.lastEarly=new Map(old.filter(x=>Array.isArray(x)&&typeof x[0]==='string'&&Number.isFinite(x[1]))); } catch {}
 try { const saved=JSON.parse(localStorage.getItem(BREAKOUT_COOLDOWN_KEY)||'[]');if(Array.isArray(saved))state.lastBreakout=new Map(saved.filter(x=>Array.isArray(x)&&typeof x[0]==='string'&&Number.isFinite(x[1]))); } catch {}
 const STATUS_ORDER = {BUY:0,WATCH:1,AVOID:2,DATA:3};
@@ -43,7 +43,8 @@ function scoreOf(r){
   return Math.round(Math.max(0,Math.min(100,base+shortTerm)));
 }
 function assess(r){
-  return window.RadarEntryQuality.evaluate(r,cfg).status;
+  const base=window.RadarEntryQuality.evaluate(r,cfg);
+  return window.RadarQuality70.gate(base,scoreOf(r)).status;
 }
 
 function toast(message,error=false){
@@ -68,10 +69,10 @@ function alertSound(){
 function browserAlert(r){
   state.localAlerts.unshift({symbol:r.symbol,at:Date.now(),price:r.price,m15:r.m15,m30:r.m30});
   state.localAlerts=state.localAlerts.slice(0,20);
-  toast(`BUY disahkan (bukan jaminan): ${r.symbol} • breakout + RVOL • ${price(r.price)} USDT`);
+  toast(`BUY skor ${r.score}/100 (bukan jaminan): ${r.symbol} • breakout + RVOL • ${price(r.price)} USDT`);
   if(state.sound)alertSound();
   if(state.alertEnabled&&'Notification' in window&&Notification.permission==='granted'){
-    try { const note=new Notification(`KuCoin Radar • ${r.symbol} BUY`,{body:`15m ${percent(r.m15)} | 30m ${percent(r.m30)} | USDT ${price(r.price)}. Semak sebelum trade.`,icon:'/icon.svg',tag:`signal-${r.symbol}`});note.onclick=()=>{window.focus();openDetail(r.symbol);note.close();};}catch{}
+    try { const note=new Notification(`KuCoin Radar • ${r.symbol} BUY`,{body:`Skor ${r.score}/100 | 15m ${percent(r.m15)} | 30m ${percent(r.m30)} | USDT ${price(r.price)}. Semak sebelum trade.`,icon:'/icon.svg',tag:`signal-${r.symbol}`});note.onclick=()=>{window.focus();openDetail(r.symbol);note.close();};}catch{}
   }
 }
 function earlyBrowserAlert(r){
@@ -104,7 +105,7 @@ function checkBreakoutAlerts(rows){
     const tag=b.signal.startsWith('BREAKOUT')?`${b.signal}:${b.one?b.at1:''}:${b.five?b.at5:''}`:'SETUP';
     next.set(r.symbol,tag);
     const before=state.previousBreakout.get(r.symbol);
-    if(!state.initial && state.breakoutEnabled && state.alertEnabled && !state.latest?.mock && b.signal.startsWith('BREAKOUT') && r.status!=='BUY' && before!==undefined && before!==tag){
+    if(!state.initial && state.breakoutEnabled && state.alertEnabled && !state.latest?.mock && b.signal.startsWith('BREAKOUT') && b.rank>=70 && r.score>=70 && r.status==='WATCH' && before!==undefined && before!==tag){
       const eventAt=breakoutEventTime(b);
       const cool=state.lastBreakout.get(r.symbol)||0;
       if(eventAt>0 && now-eventAt<=130_000 && now-cool>15*60_000){
@@ -120,7 +121,7 @@ function checkBreakoutAlerts(rows){
 }
 function earlyCandidates(rows){
  const chosen=window.RadarTop10?.choose(rows,cfg)?.leaders || [];
- return chosen.filter(r=>window.RadarAcceleration?.nearBuy(r,cfg));
+ return chosen.filter(r=>r.score>=70 && r.status==='WATCH' && window.RadarAcceleration?.nearBuy(r,cfg));
 }
 function handleSignals(rows){
   checkBreakoutAlerts(rows);
@@ -150,7 +151,37 @@ function handleSignals(rows){
 function persistSettings(){
   localStorage.setItem(SETTINGS_KEY,JSON.stringify({minVolume:cfg.minVolume,maxSpread:cfg.maxSpread,buy15:cfg.buy15,alertEnabled:state.alertEnabled,earlyEnabled:state.earlyEnabled,breakoutEnabled:state.breakoutEnabled,sound:state.sound}));
 }
+function switchMainView(view){
+  const selected=view==='dashboard'?'dashboard':'top70';
+  state.activeView=selected;
+  const top=selected==='top70';
+  byId('top70View').classList.toggle('hidden',!top);
+  byId('dashboardView').classList.toggle('hidden',top);
+  for(const [id,active] of [['tabTop70',top],['tabFullDashboard',!top]]){
+    const el=byId(id);el.classList.toggle('active',active);el.setAttribute('aria-selected',String(active));el.tabIndex=active?0:-1;
+  }
+  // On every fresh page load, the primary view is the 70+ list.
+  window.scrollTo?.({top:0,behavior:'instant'});
+}
 function initializeControls(){
+  // Always show the 70+ list first, even after the user previously opened dashboard.
+  switchMainView('top70');
+  byId('tabTop70').addEventListener('click',()=>switchMainView('top70'));
+  byId('tabFullDashboard').addEventListener('click',()=>switchMainView('dashboard'));
+  for(const button of document.querySelectorAll('[data-top70-filter]'))button.addEventListener('click',()=>{
+    state.top70Filter=button.dataset.top70Filter;
+    for(const el of document.querySelectorAll('[data-top70-filter]')){
+      const isCurrent=el===button;el.classList.toggle('active',isCurrent);el.setAttribute('aria-pressed',String(isCurrent));
+    }
+    renderTop70();
+  });
+  byId('top70Search').addEventListener('input',e=>{state.top70Query=e.target.value;renderTop70();});
+  byId('top70Sort').addEventListener('change',e=>{state.top70Sort=e.target.value;renderTop70();});
+  byId('top70Cards').addEventListener('click',e=>{
+    const track=e.target.closest('button[data-top70-track]');
+    if(track){trackTrade(track.dataset.top70Track,track.dataset.top70Source);return;}
+    const detail=e.target.closest('button[data-top70-detail]');if(detail)openDetail(detail.dataset.top70Detail);
+  });
   cfg.minVolume=Number(settings.minVolume)||SAFE.minVolume;
   cfg.maxSpread=Number(settings.maxSpread)||SAFE.maxSpread;
   cfg.buy15=Number(settings.buy15)||SAFE.buy15;
@@ -219,6 +250,7 @@ function initializeControls(){
     const detail=e.target.closest('button[data-hitrun-detail]');
     if(detail)openDetail(detail.dataset.hitrunDetail);
   });
+  for(const id of ['qualityBuyCards','qualityWatchCards'])byId(id).addEventListener('click',e=>{const track=e.target.closest('[data-quality-track]');if(track){trackTrade(track.dataset.qualityTrack,track.dataset.qualitySource);return;}const btn=e.target.closest('[data-detail]');if(btn)openDetail(btn.dataset.detail);});
   byId('hunterCards').addEventListener('click',e=>{const track=e.target.closest('button[data-track]');if(track){trackTrade(track.dataset.track,'BREAKOUT');return;}const detail=e.target.closest('button[data-detail]');if(detail)openDetail(detail.dataset.detail);});
   byId('leaderCards').addEventListener('click',e=>{const track=e.target.closest('button[data-track]');if(track){trackTrade(track.dataset.track,'MOMENTUM');return;}const detail=e.target.closest('button[data-detail]');if(detail)openDetail(detail.dataset.detail);});
   byId('radarRows').addEventListener('click',e=>{
@@ -233,7 +265,11 @@ function initializeControls(){
   byId('clock').textContent=timeText(Date.now());
 }
 function recompute(allowAlert=true){
-  state.rows=(state.latest?.rows||[]).map(r=>({...r,status:assess(r),entryQuality:window.RadarEntryQuality.evaluate(r,cfg),score:scoreOf(r)}));
+  state.rows=(state.latest?.rows||[]).map(r=>{
+    const score=scoreOf(r);
+    const entryQuality=window.RadarQuality70.gate(window.RadarEntryQuality.evaluate(r,cfg),score);
+    return {...r,status:entryQuality.status,entryQuality,score};
+  });
   if(allowAlert && state.latest?.updatedAt && Date.now()-state.latest.updatedAt<90000 && !state.latest?.error) handleSignals(state.rows);
   else for(const r of state.rows) state.previous.set(r.symbol,r.status);
   render();
@@ -255,6 +291,84 @@ async function fetchData(manual=false){
 function node(tag,cls,text){const el=document.createElement(tag);if(cls)el.className=cls;if(text!==undefined)el.textContent=String(text);return el;}
 function pCell(value){return node('span',num(value)===null?'move-neutral':value>0?'move-up':value<0?'move-down':'move-neutral',percent(value));}
 function td(value,cls){return node('td',cls||'',value);}
+function top70Card(row){
+  const eligibleBuy=window.RadarTop70.verifiedBuy(row);
+  const b=row.breakout||{};
+  const isMarket=window.RadarTop70.marketHigh(row);
+  const isBreakout=window.RadarTop70.breakoutHigh(row);
+  const box=node('article','top70-card'+(eligibleBuy?' is-buy':''));
+  const head=node('div','top70-card-head');
+  const label=node('div');label.append(node('strong','',row.symbol.replace(/-USDT$/,'')),node('span','top70-card-price',price(row.price)+' USDT'));
+  const status=node('span','top70-state '+(eligibleBuy?'buy':row.status==='AVOID'?'avoid':'watch'),eligibleBuy?'BUY SAH':row.status==='AVOID'?'AVOID':row.status==='WATCH'?'WATCH':'PANTAU');
+  head.append(label,status);
+  const scoreGrid=node('div','top70-score-pair');
+  for(const [name,value,high] of [['MARKET',row.score,isMarket],['BREAKOUT',b.rank,isBreakout]]){
+    const item=node('div',high?'highlight':'');item.append(node('small','',name),node('strong',Number.isFinite(value)?'': 'empty',Number.isFinite(value)?value+'/100':'—'));scoreGrid.append(item);
+  }
+  const moves=node('div','top70-card-mom');
+  for(const [name,value] of [['5m',row.m5],['15m',row.m15],['30m',row.m30]]){
+    const el=node('span','',name+' ');el.append(node('b',num(value)!==null&&value<0?'red-text':'',percent(value)));moves.append(el);
+  }
+  const breakoutDescription=isBreakout?`Breakout: ${b.signal||'—'} (skor ${b.rank}/100). `:'';
+  const why=eligibleBuy?'BUY lulus penapis pada snapshot ini. Semak candle, kos dan risiko sebelum entry.':
+      `BUKAN BUY. ${row.entryQuality?.reason||'Syarat entry belum lengkap.'}`;
+  const reason=node('div','top70-card-reason',breakoutDescription+why);
+  const btns=node('div','top70-card-actions');
+  const detail=node('button','', 'Butiran / carta');detail.type='button';detail.dataset.top70Detail=row.symbol;
+  const track=node('button','',eligibleBuy?'+ Pantau Trade':'+ Paper Trade');track.type='button';track.dataset.top70Track=row.symbol;
+  track.dataset.top70Source=eligibleBuy?'QUALITY BUY':isBreakout?'QUALITY BREAKOUT':'QUALITY MARKET';
+  track.title='Catatan journal sahaja. Tiada order automatik kepada KuCoin.';
+  btns.append(detail,track);box.append(head,scoreGrid,moves,reason,btns);return box;
+}
+function renderTop70(){
+  const latest=state.latest||{};
+  const fresh=latest.updatedAt && !latest.error && Date.now()-latest.updatedAt<90_000;
+  const mocked=!!latest.mock;
+  const selected=window.RadarTop70.select(state.rows,{filter:state.top70Filter,query:state.top70Query,sort:state.top70Sort});
+  byId('top70Total').textContent=String(fresh?selected.total:0);
+  byId('top70Buy').textContent=String(fresh?selected.buys:0);
+  byId('top70Observe').textContent=String(fresh?selected.observations:0);
+  byId('top70NavCount').textContent=String(fresh?selected.total:0);
+  byId('top70Fresh').textContent=mocked?'DEMO — bukan harga sebenar':fresh?`Data ${timeText(latest.updatedAt)} • auto refresh 20 saat`:'Menunggu data LIVE yang segar';
+  const cards=byId('top70Cards');
+  if(!fresh){
+    cards.replaceChildren(node('div','leaders-empty',mocked?'Memuatkan data DEMO...':'Data belum segar atau terputus. Tiada senarai signal yang boleh disahkan.'));
+    byId('top70Showing').textContent='Data menunggu';return;
+  }
+  byId('top70Showing').textContent=`${selected.rows.length} daripada ${selected.total} coin ≥70 dipaparkan`;
+  cards.replaceChildren(...(selected.rows.length?selected.rows.map(top70Card):[node('div','leaders-empty',selected.total===0?'Belum ada mana-mana coin dengan skor Market atau Breakout ≥70 dalam data semasa.': 'Tiada coin dalam tapisan ini. Cuba Semuanya ≥70 atau kosongkan carian.') ]));
+}
+function qualityCard(row,qualified){
+  const b=row.breakout||{};
+  const btn=node('button','quality-card'+(qualified?'':' observation'));btn.type='button';btn.dataset.detail=row.symbol;
+  btn.setAttribute('aria-label',`Lihat ${row.symbol}. Skor pasaran ${row.score}, breakout ${b.rank??0}. ${qualified?'BUY lulus':'Belum lulus BUY'}.`);
+  const head=node('div','quality-card-top');head.append(node('strong','',row.symbol.replace('-USDT','')));
+  head.append(node('span','quality-tag'+(qualified?'':row.status==='AVOID'?' avoid':' notbuy'),qualified?'BUY LULUS':row.status==='AVOID'?'AVOID':'BELUM BUY'));
+  const scores=node('div','quality-card-scores');
+  for(const [label,val] of [['Skor pasaran',row.score],['Skor breakout',b.rank]]){
+    const box=node('div');box.append(node('small','',label),node('b','',Number.isFinite(val)?val+'/100':'—'));scores.append(box);
+  }
+  const facts=node('div','quality-card-info',`${b.signal||'NONE'} · RVOL 1m ${Number.isFinite(b.rvol1)?b.rvol1.toFixed(2)+'×':'—'} · Spread ${Number.isFinite(row.spread)?row.spread.toFixed(3)+'%':'—'}`);
+  const why=node('div','quality-card-info'+(qualified?'':' negative'),qualified?'Memenuhi penapis BUY ketika data ini diambil. Semak chart, entry dan risiko sebelum trade.':`Belum lulus BUY: ${row.entryQuality?.reason||'Syarat entry belum lengkap'}`);
+  btn.append(head,scores,facts,why);
+  const wrap=node('div','tracking-tile');
+  const track=node('button','track-action',qualified?'+ Pantau Trade':'+ Uji Paper Trade');track.type='button';track.dataset.qualityTrack=row.symbol;
+  track.dataset.qualitySource=qualified?'QUALITY BUY':'QUALITY BREAKOUT';
+  track.title='Hanya catatan journal; tiada pesanan dihantar ke KuCoin.';
+  wrap.append(btn,track);return wrap;
+}
+function renderQuality70(){
+  const latest=state.latest||{};
+  const fresh=!!(latest.updatedAt && Date.now()-latest.updatedAt<90_000 && !latest.error);
+  const picked=window.RadarQuality70.choose(state.rows,6);
+  byId('qualityCount').textContent=`${picked.buyCount} BUY`;
+  byId('qualityBuyCount').textContent=`${picked.buyCount} signal`;
+  byId('qualityWatchCount').textContent=`${picked.watchCount} breakout untuk semakan`;
+  const buy=byId('qualityBuyCards'),watch=byId('qualityWatchCards');
+  if(!fresh){const msg='Menunggu data KuCoin yang segar; senarai skor tinggi tidak dipaparkan.';buy.replaceChildren(node('div','leaders-empty',msg));watch.replaceChildren(node('div','leaders-empty',msg));return;}
+  buy.replaceChildren(...(picked.buys.length?picked.buys.map(r=>qualityCard(r,true)):[node('div','leaders-empty','Belum ada BUY yang lulus semua syarat dengan skor pasaran ≥70. Jangan anggap breakout sahaja sebagai arahan beli.')]));
+  watch.replaceChildren(...(picked.watch.length?picked.watch.map(r=>qualityCard(r,false)):[node('div','leaders-empty','Belum ada breakout skor ≥70 yang sedang menunggu pengesahan BUY.')]));
+}
 function renderRows(){
   const all=state.rows;
   let rows=all.filter(r=>(!state.search||r.symbol.includes(state.search)) && (state.filter==='ALL'||(state.filter==='FAV'?favorites.has(r.symbol):r.status===state.filter)));
@@ -467,7 +581,7 @@ function render(){
   bootNote.classList.toggle('hidden',!pending&&!data.mock&&!!data.updatedAt);
   bootNote.textContent=data.mock?'MOD DEMO: Ini data ujian, BUKAN harga KuCoin semasa. Matikan MOCK_KUCOIN untuk live.':pending?`Sejarah 1-minit sedang disediakan: ${done}/${total} pair (${Math.round(done/total*100)}%). Pair belum selesai akan ditanda DATA. Kegagalan: ${boot.failures||0}.`:'Menunggu data pasaran KuCoin...';
   byId('tgChip').textContent=data.telegramEnabled?'TELEGRAM ON':'BROWSER';
-  renderLeaders();renderHunter();renderHitRun();renderRows();renderAlerts();
+  renderTop70();renderQuality70();renderLeaders();renderHunter();renderHitRun();renderRows();renderAlerts();
   window.RadarJournalUI?.updateMarket(state.rows,{updatedAt:data.updatedAt,mock:data.mock,error:data.error});
 }
 function recalculate(){

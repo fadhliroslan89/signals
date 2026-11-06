@@ -1,3 +1,7 @@
+# KuCoin Radar v1.9.3 — Tab Utama Semua Skor 70+
+
+Pada buka kali pertama website, tab **⭐ Semua Skor 70+** dipilih. Ia menyenaraikan **semua** coin dengan skor Market ≥70 atau skor Breakout ≥70 (bukan hanya enam kad). Coin ditunjukkan sekali walaupun kedua-dua skor lulus. BUY disahkan masih memerlukan syarat breakout dan entry; coin WATCH/AVOID hanya pemerhatian, bukan arahan beli. Carian, susunan, Detail dan + Pantau Trade tersedia. Tab **📊 Dashboard Penuh** membawa semula semua panel asal. Setiap kali laman dibuka, tab 70+ akan muncul dahulu.
+
 # KuCoin Scalping Radar — Website (Node.js 20+)
 
 Website responsif untuk **telefon dan MacBook**, tanpa langganan TradingView. Mengimbas **semua pair spot USDT yang masih aktif di KuCoin** menggunakan API awam. Tiada API key trading atau integrasi beli/jual.
@@ -153,3 +157,9 @@ Tests: `npm test`. Demo server: `npm run demo` (all demo values explicitly simul
 - The Breakout Hunter status now distinguishes **fresh/ready OHLCV** from the number of watched pairs.
 - `GET /api/status` includes `hunter.ready` and `hunter.monitored`.
 - Still no auto-trading; existing browser-local trade journal is unchanged.
+
+## v1.9.2 — High Score Radar (70+)
+
+Panel above Top 10 Momentum splits fully-qualified BUY signals with market score >=70 from breakout-ranked observations with breakout score >=70 but without BUY confirmation. The two scores use different formulae and must not be interpreted as probabilities of profit. Browser and optional server-side BUY notifications honor the >=70 market-score threshold. New journal entries store a snapshot of their score type/value/status; score-bucket win rates count only closed trades and never backfill old records.
+
+No exchange account access or trade execution is included. To deploy, upload the v1.9.2 GitHub Update archive preserving folder paths to the existing `signals` repository, then allow Render Auto-Deploy. Backup the local Trading Journal JSON before updating.

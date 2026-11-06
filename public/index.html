@@ -5,18 +5,20 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="theme-color" content="#071322" />
   <meta name="description" content="KuCoin Spot USDT scanner: top 10 momentum, 5m/15m/30m, liquidity, spread, alert." />
-  <title>KuCoin Scalping Radar v1.9 — Dual Mode Hit & Run</title>
+  <title>KuCoin Scalping Radar v1.9.3 — Semua Skor 70+</title>
   <link rel="icon" type="image/svg+xml" href="/icon.svg" />
   <link rel="manifest" href="/manifest.webmanifest" />
-  <link rel="stylesheet" href="/styles.css?v=1.9" />
+  <link rel="stylesheet" href="/styles.css?v=1.9.3" />
   <script src="/top10.js?v=1.6" defer></script>
   <script src="/acceleration.js?v=1.6" defer></script>
   <script src="/planner.js?v=1.6" defer></script>
-  <script src="/journal-core.js?v=1.6" defer></script>
-  <script src="/journal-ui.js?v=1.6" defer></script>
+  <script src="/journal-core.js?v=1.9.2" defer></script>
+  <script src="/journal-ui.js?v=1.9.2" defer></script>
   <script src="/entry-quality.js?v=1.6" defer></script>
+  <script src="/quality70.js?v=1.9.2" defer></script>
   <script src="/hitrun.js?v=1.9" defer></script>
-  <script src="/app.js?v=1.9" defer></script>
+  <script src="/top70.js?v=1.9.3" defer></script>
+  <script src="/app.js?v=1.9.3" defer></script>
 </head>
 <body>
   <div class="page">
@@ -32,7 +34,44 @@
       </div>
     </header>
 
+    <!-- Default first-page tab for all high scores, before the complete dashboard. -->
+    <nav class="main-view-tabs" role="tablist" aria-label="Paparan KuCoin Radar">
+      <button type="button" id="tabTop70" class="main-view-tab active" role="tab" aria-selected="true" aria-controls="top70View">⭐ Semua Skor 70+ <span id="top70NavCount" class="nav-count">0</span></button>
+      <button type="button" id="tabFullDashboard" class="main-view-tab" role="tab" aria-selected="false" aria-controls="dashboardView">📊 Dashboard Penuh</button>
+    </nav>
     <main>
+      <section id="top70View" class="top70-view" role="tabpanel" aria-labelledby="tabTop70">
+        <div class="top70-hero">
+          <div>
+            <div class="eyebrow"><span class="eyedot"></span> PAPARAN UTAMA / KUCOIN SPOT USDT</div>
+            <h1>Semua coin skor <span>70/100 ke atas</span></h1>
+            <p>Semua coin dengan skor Market ATAU Breakout ≥70 ditunjukkan di sini, tanpa had enam kad. BUY yang lengkap diasingkan daripada WATCH/AVOID. Skor bukan kebarangkalian menang.</p>
+          </div>
+          <div class="top70-overview">
+            <div><small>COIN SKOR ≥70</small><strong id="top70Total">0</strong></div>
+            <div><small>BUY DISAHKAN</small><strong id="top70Buy">0</strong></div>
+            <div><small>PEMERHATIAN SAHAJA</small><strong id="top70Observe">0</strong></div>
+            <span id="top70Fresh">Menunggu data LIVE...</span>
+          </div>
+        </div>
+        <div class="top70-board">
+          <div class="top70-toolbar">
+            <div class="top70-filter-pills" role="group" aria-label="Tapis skor 70 ke atas">
+              <button type="button" class="top70-filter active" data-top70-filter="ALL" aria-pressed="true">Semua ≥70</button>
+              <button type="button" class="top70-filter" data-top70-filter="BUY" aria-pressed="false">BUY disahkan</button>
+              <button type="button" class="top70-filter" data-top70-filter="OBS" aria-pressed="false">WATCH / AVOID</button>
+            </div>
+            <div class="top70-toolbar-right">
+              <label class="top70-search">⌕ <input id="top70Search" type="search" placeholder="Cari coin… SOL, BTC" aria-label="Cari coin skor 70" autocomplete="off" /></label>
+              <label class="top70-sort-label">Susun <select id="top70Sort" aria-label="Susun coin skor 70"><option value="best">BUY dahulu, kemudian skor</option><option value="score">Skor tertinggi</option><option value="market">Skor Market tertinggi</option><option value="breakout">Skor Breakout tertinggi</option></select></label>
+            </div>
+          </div>
+          <div class="top70-list-meta"><span id="top70Showing">Menunggu data...</span><span>Live update setiap 20s • Ticker awam KuCoin</span></div>
+          <div id="top70Cards" class="top70-cards" aria-live="polite"><div class="leaders-empty">Sedang mengambil senarai coin dan candle...</div></div>
+          <div class="top70-footer">⚠️ Skor Market dan Breakout ialah penilaian <strong>berbeza</strong>; 70/100 bukan peluang untung 70%. Coin AVOID bukan BUY walaupun skor Breakout 100. Klik Butiran untuk semak penapis dan risiko sebelum merekod paper trade.</div>
+        </div>
+      </section>
+      <div id="dashboardView" class="dashboard-view hidden" role="tabpanel" aria-labelledby="tabFullDashboard">
       <section class="hero">
         <div>
           <div class="eyebrow"><span class="eyedot"></span> MARKET SCANNER <span class="sep">/</span> KUCOIN SPOT USDT</div>
@@ -55,6 +94,25 @@
         <div class="metric"><div class="metric-label">BUY SIGNAL <span class="mini-dot green"></span></div><div class="metric-value green-text" id="buyCount">—</div><div class="metric-desc">Lulus semua penapis</div></div>
         <div class="metric"><div class="metric-label">WATCHLIST <span class="mini-dot yellow"></span></div><div class="metric-value" id="watchCount">—</div><div class="metric-desc">Momentum awal</div></div>
         <div class="metric"><div class="metric-label">DATA TERKINI <span class="muted-icon">◷</span></div><div class="metric-value smaller" id="lastUpdate">—</div><div class="metric-desc" id="warmupInfo">Menyediakan data...</div></div>
+      </section>
+
+      <!-- v1.9.2: A separate, conservative shortlist for score 70+. No profit guarantee. -->
+      <section class="quality-section" aria-labelledby="qualityTitle">
+        <div class="section-head quality-header">
+          <div>
+            <div class="eyebrow dim">PENAPIS SIGNAL / SKOR MINIMUM 70</div>
+            <h2 id="qualityTitle">⭐ High Score Radar <span class="subnum" id="qualityCount">0</span></h2>
+            <p class="leaders-subtitle">Utamakan skor ≥70/100. <strong>BUY lulus</strong> memerlukan semua syarat entry; breakout skor tinggi yang <strong>AVOID/WATCH bukan BUY</strong>.</p>
+          </div>
+          <span class="quality-threshold">Minimum 70/100</span>
+        </div>
+        <div class="quality-panel">
+          <div class="quality-group-header"><strong>BUY LULUS ≥70</strong><span id="qualityBuyCount">0 signal</span></div>
+          <div class="quality-grid" id="qualityBuyCards" aria-live="polite"><div class="leaders-empty">Menunggu data LIVE.</div></div>
+          <div class="quality-group-header quality-watch-head"><strong>BREAKOUT ≥70 — BELUM LULUS BUY</strong><span id="qualityWatchCount">0 pemerhatian</span></div>
+          <div class="quality-grid" id="qualityWatchCards" aria-live="polite"><div class="leaders-empty">Menunggu data LIVE.</div></div>
+          <div class="leaders-footer"><span>Skor Breakout dan skor Pasaran <b>berbeza</b>. Kedua-duanya bukan peratus kemenangan. Klik kad untuk semak sebab penolakan.</span><span>Hanya BUY yang lulus semua penapis + skor pasaran ≥70 boleh mencetuskan alert BUY.</span></div>
+        </div>
       </section>
 
       <!-- Independent ranking: helps select coins to inspect, never relaxes BUY filters. -->
@@ -108,7 +166,7 @@
             <div><small>WIN RATE</small><strong id="journalWinRate">—</strong></div>
             <div><small>NET REALIZED P&L (USDT)</small><strong id="journalNet" class="journal-value">$0.00</strong></div>
           </div>
-          <div class="journal-bar"><div><strong id="journalModeLabel">Trade sebenar (rekod manual)</strong><span id="journalStatInfo">Win rate = trade untung ÷ semua trade ditutup.</span></div><div><label for="journalVisibility">Papar</label><select id="journalVisibility"><option value="ALL">Semua</option><option value="OPEN">Terbuka</option><option value="CLOSED">Ditutup</option></select><span id="journalRecordCount">0 rekod</span></div></div>
+          <div class="journal-bar"><div><strong id="journalModeLabel">Trade sebenar (rekod manual)</strong><span id="journalStatInfo">Win rate = trade untung ÷ semua trade ditutup.</span><span id="journalScore70Info" class="journal-score70">Skor ≥70: belum ada trade bertanda skor yang ditutup.</span></div><div><label for="journalVisibility">Papar</label><select id="journalVisibility"><option value="ALL">Semua</option><option value="OPEN">Terbuka</option><option value="CLOSED">Ditutup</option></select><span id="journalRecordCount">0 rekod</span></div></div>
           <div id="journalMessage" class="journal-message hidden" role="status"></div>
           <div class="journal-position-grid" id="journalPositions"><div class="leaders-empty">Belum ada posisi. Tekan + Pantau Trade pada kad coin Momentum atau Breakout.</div></div>
           <div class="journal-footer">Posisi lebih 30 minit ditanda untuk semakan; jurnal tidak menutup posisi automatik. TP ≤30m dikira daripada exit yang kau rekod, bukan pergerakan intrabar. Posisi OPEN dinilai menggunakan harga BID KuCoin hanya apabila data segar tersedia. TP/SL ialah tahap rujukan; sistem <b>tidak melaksanakan jual beli atau menutup order sebenar</b>. Statistik bergantung kepada rekod yang kau masukkan, bukan penyata akaun KuCoin.</div>
@@ -192,8 +250,9 @@
         </div>
       </section>
       <div class="disclaimer">Radar menggunakan data awam KuCoin. Pengiraan 5m/15m/30m menggunakan harga semasa berbanding sejarah 1-minit; bukan ramalan keuntungan. Tiada transaksi dilaksanakan dan tiada API key trading diperlukan. Semak semua data sebelum trade.</div>
+      </div><!-- /dashboardView -->
     </main>
-    <footer><span>KUCOIN<span class="accent">RADAR</span> <span class="footer-minor">— Independent spot scanner. Not affiliated with KuCoin.</span></span><span>© <span id="year">2026</span> • v1.5</span></footer>
+    <footer><span>KUCOIN<span class="accent">RADAR</span> <span class="footer-minor">— Independent spot scanner. Not affiliated with KuCoin.</span></span><span>© <span id="year">2026</span> • v1.9.3</span></footer>
   </div>
   <div id="toastArea" class="toast-area" aria-live="polite"></div>
   <div id="journalEntryBackdrop" class="modal-backdrop hidden" role="presentation">

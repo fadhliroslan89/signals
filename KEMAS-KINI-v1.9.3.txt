@@ -1,0 +1,19 @@
+KuCoin Radar v1.9.3 — Tab Paling Atas Skor ≥70
+
+Apa yang berubah:
+• Tab pertama ⭐ Semua Skor 70+ dibuka secara default untuk pengguna baharu.
+• Tab kedua 📊 Dashboard Penuh mengekalkan Momentum, Breakout, Journal, Hit & Run dan Market.
+• Gabung semua simbol yang memenuhi skor Market atau Breakout ≥70, tanpa had 6 kad, setiap simbol sekali sahaja.
+• Pisahkan BUY yang disahkan daripada WATCH/AVOID walaupun breakout skor tinggi.
+• Carian dan filter: Semua / BUY / WATCH-AVOID; susun Market/Breakout/skor.
+• Butang Butiran dan Paper/Pantau Trade disambungkan ke journal sedia ada.
+• Skor tidak mewakili kebarangkalian untung; aplikasi ini tidak menghantar order.
+
+Kemas kini GitHub:
+1) Backup JSON Trade Journal dahulu.
+2) Extract ZIP GitHub Update.
+3) Upload isi ZIP ke ROOT repository signals, kekalkan folder public dan test.
+4) Commit changes; tunggu Render deploy commit terkini.
+5) Buka website dan Cmd+Shift+R.
+
+Fail penting: public/top70.js, public/app.js, public/index.html, public/styles.css, package.json.
