@@ -316,7 +316,7 @@ function serveFile(res, pathname) {
   if (!resolved.startsWith(publicDir + path.sep)) return json(res,{error:'Not found'},404);
   fs.readFile(resolved, (err, contents) => {
     if (err) return json(res,{error:'Not found'},404);
-    // PaperLab uses an inline script/style; quotes come from our same-origin /api/price endpoint.
+    // PaperLab v1.1 uses an inline script/style and the public KuCoin price API.
     // Allow these only for the PaperLab HTML; scanner scripts stay restricted to self.
     // The scanner injects a local <style> for the PaperLab navigation button.
     const isPaperLabPage = pathname === '/paperlab/index.html';
@@ -326,7 +326,7 @@ function serveFile(res, pathname) {
       `script-src 'self'${isPaperLabPage ? " 'unsafe-inline'" : ''}`,
       `style-src 'self'${(isPaperLabPage || isScannerPage) ? " 'unsafe-inline'" : ''}`,
       "img-src 'self' data:",
-      "connect-src 'self'",
+      `connect-src 'self'${isPaperLabPage ? ' https://api.kucoin.com https://ldwfgsupmyykicdmfgjp.supabase.co' : ''}`,
       "object-src 'none'",
       "base-uri 'self'",
       "frame-ancestors 'none'"
@@ -344,30 +344,6 @@ const server = http.createServer((req, res) => {
     hunter:{monitored:state.hunterWatched.size,ready:state.rows.filter(r => r.breakout?.coverage === 'READY').length,limit:HUNTER_LIMIT,lastRefreshed:state.hunterLastRefresh,failures:state.hunterFailures},
     alerts:state.alertLog.slice(0,12), rows:state.rows,
   });
-  // PaperLab live quote: reuse the latest ticker already fetched by KuCoin Radar.
-  // This avoids browser-side CORS errors, extra upstream requests and API secrets.
-  if (url.pathname === '/api/price') {
-    const symbol = String(url.searchParams.get('symbol') || '').trim().toUpperCase();
-    if (!/^[A-Z0-9]{2,20}-USDT$/.test(symbol)) {
-      return json(res, {error:'Format pair tidak sah. Gunakan COIN-USDT.'}, 400);
-    }
-    if (!state.allowed.has(symbol)) {
-      return json(res, {error:'Pair ini tidak aktif / tidak ditemui dalam KuCoin Radar.'}, 404);
-    }
-    const ticker = state.tickers.get(symbol);
-    const lastPrice = number(ticker?.last);
-    const ageMs = Date.now() - state.lastUpdate;
-    if (!(lastPrice > 0) || !state.lastUpdate || ageMs > 90_000) {
-      return json(res, {error:'Harga belum tersedia atau terlalu lama. Cuba semula apabila scanner selesai mengemas kini.'}, 503);
-    }
-    const bestAsk = number(ticker.sell);
-    return json(res, {
-      symbol, price:lastPrice, ask:bestAsk>0?bestAsk:null,
-      updatedAt:state.lastUpdate, ageSeconds:Math.max(0,Math.floor(ageMs/1000)),
-      source:MOCK?'DEMO':'KuCoin public market ticker', mock:MOCK,
-      note:'Last traded price, bukan harga execution yang dijamin.'
-    });
-  }
   if (url.pathname === '/api/history') {
     const symbol = url.searchParams.get('symbol') || '';
     if (!state.allowed.has(symbol)) return json(res,{error:'Symbol not found'},404);
