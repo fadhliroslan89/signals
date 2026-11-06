@@ -2,5 +2,5 @@
 // This file is visible to anyone visiting the website. NEVER add a secret key, service_role key or password.
 window.PAPERLAB_CLOUD = Object.freeze({
   url: 'https://ldwfgsupmyykicdmfgjp.supabase.co',
-  publishableKey: 'PASTE_YOUR_SB_PUBLISHABLE_KEY_HERE'
+  publishableKey: 'sb_publishable_DDP-aopINa6dZ-x6ewYm8A_JF1E-XST'
 });
