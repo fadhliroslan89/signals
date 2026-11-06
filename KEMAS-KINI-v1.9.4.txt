@@ -1,0 +1,34 @@
+KUCOIN RADAR v1.9.4 — PEMBETULAN RALAT GATE / STATUS OFFLINE
+============================================================
+Masalah: v1.9.3 boleh memaparkan "Cannot read properties of undefined (reading 'gate')"
+selepas data KuCoin diambil. Ini ialah kegagalan modul Quality70 pada frontend;
+ia tidak semestinya bermaksud server KuCoin/Render OFFLINE.
+
+Pembetulan:
+1. Sediakan semula public/quality70.js dalam pakej kemas kini.
+2. Muatkan skrip quality70.js dahulu sebelum app.js, dengan versi URL baharu.
+3. Jika modul skor tidak berjaya dimuatkan, BUY disekat secara konservatif.
+4. Data pasaran masih boleh dipaparkan; mesej ralat modul diberi di atas kedua-dua tab.
+5. Pisahkan ralat sambungan server daripada ralat pemaparan JavaScript.
+6. Logik BUY, TP/SL, Breakout, Momentum dan rekod Trading Journal tidak diubah.
+
+LANGKAH UPDATE
+1. Dalam Trading Journal, eksport Backup JSON sebelum kemas kini.
+2. Extract fail KuCoin_Radar_v1_9_4_Offline_Gate_Fix_GitHub_Update.zip.
+3. GitHub: repository fadhliroslan89/signals -> Add file -> Upload files.
+4. Upload semua kandungan ZIP, termasuk folder public/ DAN file public/quality70.js.
+   Pastikan tidak tercipta folder 'kucoin_v194_fix' atau folder berlapis.
+5. Commit changes ke branch main. Tunggu Render Auto-Deploy menunjukkan Live.
+6. Buka https://signals-ax4g.onrender.com dan tekan Cmd+Shift+R (Mac).
+7. Pastikan status LIVE/DEMO (bukan OFFLINE kerana ralat gate), tab 70+ mengemas kini,
+   dan ralat "reading 'gate'" hilang.
+
+Jika masalah masih ada:
+- Cuba terus URL https://signals-ax4g.onrender.com/quality70.js?v=1.9.4
+  (sepatutnya memaparkan kod JavaScript, bukan 404 atau halaman HTML).
+- Semak Render -> Logs dan browser Console untuk ralat baharu.
+
+UJIAN
+- 80 ujian Node lulus, termasuk modul Quality70 gagal dimuatkan.
+- /api/status dan /quality70.js memberi HTTP 200 di server DEMO tempatan.
+- Tidak diuji melalui browser LIVE (persekitaran ujian menyekat navigasi Chromium).

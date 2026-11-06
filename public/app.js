@@ -18,6 +18,20 @@ const state = {top70Filter:'ALL',top70Query:'',top70Sort:'best',activeView:'top7
 try { const old=JSON.parse(localStorage.getItem(EARLY_COOLDOWN_KEY)||'[]'); if(Array.isArray(old))state.lastEarly=new Map(old.filter(x=>Array.isArray(x)&&typeof x[0]==='string'&&Number.isFinite(x[1]))); } catch {}
 try { const saved=JSON.parse(localStorage.getItem(BREAKOUT_COOLDOWN_KEY)||'[]');if(Array.isArray(saved))state.lastBreakout=new Map(saved.filter(x=>Array.isArray(x)&&typeof x[0]==='string'&&Number.isFinite(x[1]))); } catch {}
 const STATUS_ORDER = {BUY:0,WATCH:1,AVOID:2,DATA:3};
+// Quality70 is an external browser script. Keep market data visible if it fails to load,
+// but fail closed for BUY: do not silently bypass the score-70 gate.
+const MISSING_QUALITY70 = Object.freeze({
+  gate(entry){
+    if (!entry || typeof entry !== 'object') return {status:'DATA',reason:'Penapis skor 70 tidak tersedia.'};
+    if (entry.status !== 'BUY') return entry;
+    return {...entry,status:'WATCH',reason:'Penapis skor 70 tidak dimuatkan. BUY disekat sehingga quality70.js tersedia.'};
+  },
+  choose(){return {buyCount:0,watchCount:0,buys:[],watch:[]};}
+});
+function quality70Ready(){
+  return typeof window.RadarQuality70?.gate === 'function' && typeof window.RadarQuality70?.choose === 'function';
+}
+function quality70(){return quality70Ready()?window.RadarQuality70:MISSING_QUALITY70;}
 let cfg = {...SAFE};
 function num(v){return typeof v==='number' && Number.isFinite(v) ? v : null;}
 function currency(value){
@@ -44,7 +58,7 @@ function scoreOf(r){
 }
 function assess(r){
   const base=window.RadarEntryQuality.evaluate(r,cfg);
-  return window.RadarQuality70.gate(base,scoreOf(r)).status;
+  return quality70().gate(base,scoreOf(r)).status;
 }
 
 function toast(message,error=false){
@@ -267,7 +281,7 @@ function initializeControls(){
 function recompute(allowAlert=true){
   state.rows=(state.latest?.rows||[]).map(r=>{
     const score=scoreOf(r);
-    const entryQuality=window.RadarQuality70.gate(window.RadarEntryQuality.evaluate(r,cfg),score);
+    const entryQuality=quality70().gate(window.RadarEntryQuality.evaluate(r,cfg),score);
     return {...r,status:entryQuality.status,entryQuality,score};
   });
   if(allowAlert && state.latest?.updatedAt && Date.now()-state.latest.updatedAt<90000 && !state.latest?.error) handleSignals(state.rows);
@@ -275,17 +289,32 @@ function recompute(allowAlert=true){
   render();
 }
 async function fetchData(manual=false){
+  let data;
   try{
     const response=await fetch('/api/status',{cache:'no-store',signal:AbortSignal.timeout(16000)});
     if(!response.ok)throw new Error(`Server HTTP ${response.status}`);
-    const data=await response.json();
-    state.latest=data;
+    data=await response.json();
+  } catch(err){
+    const notice=byId('errorNotice');notice.textContent=`Tidak dapat menghubungi server scanner: ${err.message}. Pastikan server sedang berjalan.`;notice.classList.remove('hidden');
+    const globalWarning=byId('runtimeWarning');globalWarning.textContent='Sambungan server gagal. Semak status Render dan cuba refresh.';globalWarning.classList.remove('hidden');
+    byId('connection').classList.add('offline');byId('connection').querySelector('span').textContent='OFFLINE';
+    if(manual)toast('Kemas kini gagal.',true);
+    return;
+  }
+  // Rendering errors are NOT server outages. Preserve fetched market data and diagnose
+  // the browser issue separately, instead of misleadingly reporting OFFLINE.
+  state.latest=data;
+  try{
     recompute();
     if(manual)toast('Data dashboard dikemas kini.');
   } catch(err){
-    const notice=byId('errorNotice');notice.textContent=`Tidak dapat menghubungi server scanner: ${err.message}. Pastikan server sedang berjalan.`;notice.classList.remove('hidden');
-    byId('connection').classList.add('offline');byId('connection').querySelector('span').textContent='OFFLINE';
-    if(manual)toast('Kemas kini gagal.',true);
+    console.error('Dashboard rendering error:',err);
+    const notice=byId('errorNotice');
+    notice.textContent=`Ralat paparan dashboard: ${err.message}. Data mungkin masih LIVE, tetapi signal tidak boleh dipercayai sehingga paparan dibaiki.`;
+    notice.classList.remove('hidden');
+    const globalWarning=byId('runtimeWarning');globalWarning.textContent='Ralat paparan dashboard. Data mungkin masih LIVE; signal tidak boleh dipercayai sehingga ralat dibaiki.';globalWarning.classList.remove('hidden');
+    byId('connection').querySelector('span').textContent='RALAT PAPARAN';
+    if(manual)toast('Ralat paparan dashboard.',true);
   }
 }
 function node(tag,cls,text){const el=document.createElement(tag);if(cls)el.className=cls;if(text!==undefined)el.textContent=String(text);return el;}
@@ -360,7 +389,7 @@ function qualityCard(row,qualified){
 function renderQuality70(){
   const latest=state.latest||{};
   const fresh=!!(latest.updatedAt && Date.now()-latest.updatedAt<90_000 && !latest.error);
-  const picked=window.RadarQuality70.choose(state.rows,6);
+  const picked=quality70().choose(state.rows,6);
   byId('qualityCount').textContent=`${picked.buyCount} BUY`;
   byId('qualityBuyCount').textContent=`${picked.buyCount} signal`;
   byId('qualityWatchCount').textContent=`${picked.watchCount} breakout untuk semakan`;
@@ -567,7 +596,17 @@ function render(){
   const age=data.updatedAt?Math.max(0,Math.round((Date.now()-data.updatedAt)/1000)):null;
   const live=data.updatedAt && age<=90 && !data.error;
   const conn=byId('connection');conn.classList.toggle('offline',!live);conn.querySelector('span').textContent=data.mock?'DEMO DATA':live?'LIVE KUCOIN':'DATA TERGANGGU';
-  const notice=byId('errorNotice');notice.classList.toggle('hidden',!data.error);notice.textContent=data.error?`KuCoin gagal dikemas kini: ${data.error}. Data lama mungkin terpapar; jangan trade berdasarkan data lapuk.`:'';
+  const notice=byId('errorNotice');
+  const missingScoreGate=!quality70Ready();
+  const noticeText=data.error
+    ? `KuCoin gagal dikemas kini: ${data.error}. Data lama mungkin terpapar; jangan trade berdasarkan data lapuk.`
+    : missingScoreGate
+      ? 'Modul quality70.js tidak dimuatkan. Harga pasaran masih boleh dipaparkan, tetapi semua BUY disekat demi keselamatan. Refresh halaman atau upload fail v1.9.4 yang lengkap.'
+      : '';
+  notice.classList.toggle('hidden',!noticeText);notice.textContent=noticeText;
+  const globalWarning=byId('runtimeWarning');
+  globalWarning.classList.toggle('hidden',!missingScoreGate);
+  globalWarning.textContent=missingScoreGate?'Modul skor 70 tidak dimuatkan. Semua signal BUY disekat buat sementara; data harga boleh dipantau tetapi jangan buat entry berdasarkan scanner.':'';
   byId('pairCount').textContent=data.pairs?.toLocaleString('en-US')||'—';
   byId('loadedCount').textContent=`${data.fetched||0} pair dengan ticker`;
   const buy=state.rows.filter(r=>r.status==='BUY').length;const watch=state.rows.filter(r=>r.status==='WATCH').length;

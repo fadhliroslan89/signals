@@ -1,6 +1,6 @@
 {
   "name": "kucoin-scalping-radar",
-  "version": "1.9.3",
+  "version": "1.9.4",
   "private": true,
   "description": "KuCoin USDT Spot momentum, breakout, journal and dual-tier intraday gainers and OHLCV volume spike monitor",
   "main": "server.js",

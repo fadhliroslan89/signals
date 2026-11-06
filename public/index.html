@@ -15,10 +15,10 @@
   <script src="/journal-core.js?v=1.9.2" defer></script>
   <script src="/journal-ui.js?v=1.9.2" defer></script>
   <script src="/entry-quality.js?v=1.6" defer></script>
-  <script src="/quality70.js?v=1.9.2" defer></script>
+  <script src="/quality70.js?v=1.9.4" defer></script>
   <script src="/hitrun.js?v=1.9" defer></script>
   <script src="/top70.js?v=1.9.3" defer></script>
-  <script src="/app.js?v=1.9.3" defer></script>
+  <script src="/app.js?v=1.9.4" defer></script>
 </head>
 <body>
   <div class="page">
@@ -39,6 +39,7 @@
       <button type="button" id="tabTop70" class="main-view-tab active" role="tab" aria-selected="true" aria-controls="top70View">⭐ Semua Skor 70+ <span id="top70NavCount" class="nav-count">0</span></button>
       <button type="button" id="tabFullDashboard" class="main-view-tab" role="tab" aria-selected="false" aria-controls="dashboardView">📊 Dashboard Penuh</button>
     </nav>
+    <div id="runtimeWarning" class="notice hidden" role="alert" aria-live="polite"></div>
     <main>
       <section id="top70View" class="top70-view" role="tabpanel" aria-labelledby="tabTop70">
         <div class="top70-hero">
