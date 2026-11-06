@@ -7,7 +7,7 @@
   <meta name="description" content="Kalkulator take profit dan paper trading KuCoin Spot USDT. Simulasi sahaja, tiada transaksi sebenar."/>
   <link rel="manifest" href="./manifest.webmanifest"/>
   <link rel="icon" href="./icon.svg" type="image/svg+xml"/>
-  <title>KuCoin PaperLab v1.4 — Coin Quick Input + Auto Monitor</title>
+  <title>KuCoin PaperLab v1.5 — Cloud Journal Sync</title>
   <style>
     :root{--bg:#080d17;--surface:#0e1725;--surface2:#142031;--surface3:#1b2a3d;--stroke:#293648;--muted:#8b9bad;--text:#f2f7fc;--green:#3fe3b3;--greenSoft:rgba(63,227,179,.13);--red:#ff6a85;--redSoft:rgba(255,106,133,.12);--blue:#7dabff;--orange:#ffcb77;--shadow:0 16px 48px rgba(0,0,0,.17);color-scheme:dark}
     *{box-sizing:border-box}html{scroll-behavior:smooth}body{background:var(--bg);color:var(--text);font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;margin:0;min-height:100vh}button,input,select,textarea{font:inherit}button{cursor:pointer}button:disabled{opacity:.45;cursor:not-allowed}a{color:inherit;text-decoration:none}input,select,textarea{width:100%;border:1px solid var(--stroke);border-radius:12px;background:#0b1421;color:var(--text);padding:13px 14px;outline:none;transition:border .2s,box-shadow .2s}input:focus,textarea:focus,select:focus{border-color:#52c8b2;box-shadow:0 0 0 3px rgba(63,227,179,.1)}input::placeholder,textarea::placeholder{color:#63758a}input[type=number]{font-variant-numeric:tabular-nums}input[type=number]::-webkit-inner-spin-button{appearance:none}input[type=number]{-moz-appearance:textfield}button:focus-visible,a:focus-visible{outline:2px solid var(--green);outline-offset:3px}
@@ -28,6 +28,20 @@
     .coin-input input{flex:1;width:100%;min-width:0;border:0;background:transparent;outline:none;box-shadow:none!important;padding:13px 14px;text-transform:uppercase}
     .coin-input .pair-suffix{flex:0 0 auto;pointer-events:none;white-space:nowrap;padding:0 14px 0 3px;color:#91acbd;font-size:12px;font-weight:800;letter-spacing:.2px}
     @media(max-width:610px){.coin-input input{padding:12px 11px}.coin-input .pair-suffix{font-size:11px;padding-right:8px}}
+  
+  /* v1.5 Cloud Journal: public-key Supabase Auth + RLS-protected sync */
+  [hidden]{display:none!important}
+  .cloud-panel{margin-top:18px}
+  .cloud-banner{border:1px solid var(--stroke);background:#0b1421;border-radius:11px;padding:13px 15px;line-height:1.55;color:var(--muted);font-size:12px;margin-bottom:17px}
+  .cloud-banner[data-kind="ok"]{border-color:#2c6556;color:var(--green)}
+  .cloud-banner[data-kind="warn"]{border-color:#795c47;color:#ffd198}
+  .cloud-auth{display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:end}
+  .cloud-auth .buttons{grid-column:1/-1;display:flex;gap:10px;flex-wrap:wrap}
+  .cloud-logged{display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap;margin-bottom:15px}
+  .cloud-tools{display:flex;gap:9px;flex-wrap:wrap}
+  .cloud-note{font-size:11px;color:var(--muted);line-height:1.6;margin:13px 0 0}
+  @media(max-width:630px){.cloud-auth{grid-template-columns:1fr}.cloud-auth .buttons>*{flex:1}.cloud-tools>*{flex:1}}
+
   </style>
 </head>
 <body>
@@ -101,12 +115,27 @@
     </div>
     <div class="monitor-alert"><strong>Had pemantauan:</strong> Auto Monitor hanya berjalan sewaktu tab ini <strong>terbuka dan aktif</strong>. Ia berhenti apabila tab disembunyikan, browser ditutup atau peranti tidur. Tiada pemantauan server 24/7, tiada order sebenar dan tiada jaminan harga TP/SL dapat dieksekusi. Exit simulasi mengguna harga terakhir yang diperhatikan (boleh lebih baik atau lebih buruk daripada TP/SL). Jika data lapuk / API gagal, posisi kekal OPEN.</div>
   </section>
+
   <section class="panel journal" id="journal">
-    <div class="journal-head"><div class="panel-title"><div><h2>04 / Paper trading journal</h2><p>Catat trade dan rekod keputusan. Semua disimpan pada browser ini; monitor hanya aktif dalam tab yang sedang dibuka.</p></div></div><div class="journal-tools"><button class="ghost tiny" id="updateOpenQuotes">↻ Update harga</button><button class="ghost tiny" id="downloadCSV">↓ Export CSV</button></div></div>
+    <div class="journal-head"><div class="panel-title"><div><h2>04 / Paper trading journal</h2><p>Catat trade dan rekod keputusan. Data disimpan di browser; Cloud Sync pilihan boleh disambungkan melalui login. Monitor hanya aktif dalam tab yang sedang dibuka.</p></div></div><div class="journal-tools"><button class="ghost tiny" id="updateOpenQuotes">↻ Update harga</button><button class="ghost tiny" id="downloadCSV">↓ Export CSV</button></div></div>
     <div class="tabs" role="tablist"><button class="active" data-tab="open">Open <span id="openCount">0</span></button><button data-tab="closed">Closed <span id="closedCount">0</span></button><button data-tab="all">Semua</button></div>
     <div class="journal-content" id="journalContent"></div>
   </section>
-  <footer class="foot"><span>KUCOIN PAPERLAB V1.4 · Dibina untuk latihan, bukan order sebenar. Data dalam localStorage per browser/peranti; eksport CSV untuk backup.</span><span>Rujukan KuCoin: <a href="https://www.kucoin.com/docs-new/api-3470160" target="_blank" rel="noopener">API documentation</a></span></footer>
+  <section class="panel cloud-panel" id="cloudSync" aria-label="Cloud Journal Sync">
+    <div class="panel-title"><div><h2>05 / Cloud Journal Sync</h2><p>Login email untuk gunakan jurnal paper trade yang sama di MacBook, Android dan peranti lain.</p></div><span class="section-tag" id="cloudMode">BELUM SYNC</span></div>
+    <div class="cloud-banner" id="cloudStatus" role="status" aria-live="polite">Menyediakan Cloud Sync…</div>
+    <div id="cloudLoggedOut" class="cloud-auth">
+      <div class="field"><label for="cloudEmail">Email</label><input type="email" id="cloudEmail" autocomplete="email" placeholder="email@contoh.com"/></div>
+      <div class="field"><label for="cloudPassword">Password</label><input type="password" id="cloudPassword" autocomplete="current-password" placeholder="Password Supabase (min. 12 aksara)"/></div>
+      <div class="buttons"><button class="btn" type="button" id="cloudLoginBtn">Login</button><button class="btn secondary" type="button" id="cloudSignupBtn">Daftar akaun</button></div>
+    </div>
+    <div id="cloudLoggedIn" hidden>
+      <div class="cloud-logged"><span>✓ Akaun: <strong id="cloudEmailName"></strong></span><button class="ghost tiny" id="cloudLogoutBtn" type="button">Logout Cloud</button></div>
+      <div class="cloud-tools"><button class="btn secondary" id="cloudDownloadBtn" type="button">↓ Muat journal cloud</button><button class="btn secondary" id="cloudUploadBtn" type="button">↑ Hantar journal lokal ke cloud</button><button class="btn" id="cloudSyncBtn" type="button">↻ Sync sekarang</button></div>
+    </div>
+    <p class="cloud-note">Data sedia ada tidak dipadam. Kali pertama login, pilih sama ada menggunakan data Cloud atau menghantar data browser. Selepas dipaut, sync berjalan semasa halaman aktif dan mempunyai internet. Jika dua device mengubah journal serentak, sync akan berhenti untuk elakkan data tertimpa. Auto Monitor TP/SL masih hanya berjalan dalam tab yang aktif, bukan server 24/7. Elakkan monitor pada dua device serentak.</p>
+  </section>
+  <footer class="foot"><span>KUCOIN PAPERLAB V1.5 · Dibina untuk latihan, bukan order sebenar. Simpan local dahulu; cloud sync selepas login Supabase. Eksport CSV untuk backup.</span><span>Rujukan KuCoin: <a href="https://www.kucoin.com/docs-new/api-3470160" target="_blank" rel="noopener">API documentation</a></span></footer>
 </div>
 <dialog id="settingsModal"><div class="modal-head"><h3>⚙ Tetapan paper wallet</h3><button class="ghost tiny" data-close="settingsModal">✕</button></div><p class="modal-p">Tetapkan nilai permulaan akaun demo. Reset akan memadam semua paper trades pada browser ini.</p><div class="field"><label for="initialWallet">Modal awal wallet virtual (USDT)</label><input id="initialWallet" type="number" min="1" step="any" value="1000"/></div><div class="actions"><button class="btn secondary" data-close="settingsModal">Batal</button><button class="btn danger" id="resetWallet">Reset wallet + journal</button></div></dialog>
 <dialog id="importModal"><div class="modal-head"><h3>↧ Import signal</h3><button class="ghost tiny" data-close="importModal">✕</button></div><p class="modal-p">Paste signal KuCoin dari scanner sebelumnya. App cuba baca pair, entry, TP dan SL. Semak semula nilai sebelum buka paper trade.</p><textarea id="signalText" placeholder="CONTOH:\nBUY SOL-USDT\nEntry: 150\nTP: 157\nSL: 147\nScore: 88"></textarea><div class="actions"><button class="btn secondary" data-close="importModal">Batal</button><button class="btn" id="parseSignal">Baca signal</button></div><p class="hint">Sambungan automatik daripada KuCoin Radar v1.9.5 menyokong parameter URL: symbol, entry, tp, sl dan score.</p></dialog>
@@ -352,5 +381,7 @@ renderAll();calcRender();readURL();
 if('serviceWorker' in navigator && /^https?:$/.test(location.protocol))navigator.serviceWorker.register('./sw.js').catch(()=>{});
 })();
 </script>
+<script src="./cloud-config.js?v=1.5"></script>
+<script src="./cloud-sync.js?v=1.5"></script>
 </body>
 </html>
