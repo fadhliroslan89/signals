@@ -308,7 +308,7 @@ function json(res, obj, status = 200) {
   res.writeHead(status, { 'content-type':'application/json; charset=utf-8', 'cache-control':'no-store', 'x-content-type-options':'nosniff'});
   res.end(JSON.stringify(obj));
 }
-const types = {'.html':'text/html; charset=utf-8','.css':'text/css; charset=utf-8','.js':'text/javascript; charset=utf-8','.svg':'image/svg+xml','.webmanifest':'application/manifest+json'};
+const types = {'.html':'text/html; charset=utf-8','.css':'text/css; charset=utf-8','.js':'text/javascript; charset=utf-8','.svg':'image/svg+xml','.png':'image/png','.webmanifest':'application/manifest+json'};
 function serveFile(res, pathname) {
   const name = pathname === '/' ? 'index.html' : pathname.slice(1);
   if (!/^[a-zA-Z0-9._/-]+$/.test(name)) return json(res,{error:'Not found'},404);
@@ -316,7 +316,22 @@ function serveFile(res, pathname) {
   if (!resolved.startsWith(publicDir + path.sep)) return json(res,{error:'Not found'},404);
   fs.readFile(resolved, (err, contents) => {
     if (err) return json(res,{error:'Not found'},404);
-    res.writeHead(200, {'content-type':types[path.extname(resolved)] || 'application/octet-stream','cache-control':'public, max-age=300','x-content-type-options':'nosniff','referrer-policy':'no-referrer','content-security-policy':"default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'" });
+    // PaperLab v1.1 uses an inline script/style and the public KuCoin price API.
+    // Allow these only for the PaperLab HTML; scanner scripts stay restricted to self.
+    // The scanner injects a local <style> for the PaperLab navigation button.
+    const isPaperLabPage = pathname === '/paperlab/index.html';
+    const isScannerPage = pathname === '/' || pathname === '/index.html';
+    const csp = [
+      "default-src 'self'",
+      `script-src 'self'${isPaperLabPage ? " 'unsafe-inline'" : ''}`,
+      `style-src 'self'${(isPaperLabPage || isScannerPage) ? " 'unsafe-inline'" : ''}`,
+      "img-src 'self' data:",
+      `connect-src 'self'${isPaperLabPage ? ' https://api.kucoin.com' : ''}`,
+      "object-src 'none'",
+      "base-uri 'self'",
+      "frame-ancestors 'none'"
+    ].join('; ');
+    res.writeHead(200, {'content-type':types[path.extname(resolved)] || 'application/octet-stream','cache-control':'public, max-age=300','x-content-type-options':'nosniff','referrer-policy':'no-referrer','content-security-policy':csp });
     res.end(contents);
   });
 }
@@ -336,6 +351,10 @@ const server = http.createServer((req, res) => {
     return json(res,{symbol,points:records});
   }
   if (url.pathname === '/api/health') return json(res, {ok:!!state.lastUpdate && Date.now()-state.lastUpdate<90_000, lastUpdate:state.lastUpdate, error:state.error});
+  // Resolve the folder URL to PaperLab's HTML entry point.
+  if (url.pathname === '/paperlab' || url.pathname === '/paperlab/') {
+    return serveFile(res, '/paperlab/index.html');
+  }
   return serveFile(res, url.pathname);
 });
 server.listen(PORT, HOST, () => {
