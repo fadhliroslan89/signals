@@ -1,4 +1,4 @@
-/* KuCoin Radar — Live OHLCV Detail Chart v2.0.
+/* KuCoin Radar — Live OHLCV Detail Chart v2.1 — Entry Decision Assistant.
    Non-trading chart extension; reads only same-origin /api/chart.
    Existing scanner and PaperLab state are not mutated. */
 (() => {
@@ -6,6 +6,7 @@
   const BACKDROP_ID = 'detailBackdrop';
   const POLL_MS = 20_000;
   const TIMEFRAMES = ['1m','5m','15m','30m','1h','4h'];
+  const TF_SECONDS = Object.freeze({'1m':60,'5m':300,'15m':900,'30m':1800,'1h':3600,'4h':14400});
   const GREEN = '#23d7ae';
   const RED = '#f36b80';
   const MA_COLORS = ['#eeb943','#57a7ff','#b679ff'];
@@ -100,8 +101,19 @@
     canvasWrap.append(cvs,floating);
     const footer=el('div','kchart-foot');
     footer.append(el('span','kchart-status','Menyediakan chart…'),el('span','kchart-volume','VOL  —'));
+    const decision=el('div','kchart-decision');
+    decision.innerHTML=`<div class="kchart-decision-head"><div><strong>ENTRY DECISION ASSISTANT</strong><span data-decision-sub>Semakan berdasarkan candle yang sudah tutup</span></div><b class="kchart-decision-badge" data-decision-badge>TUNGGU DATA</b></div>
+      <div class="kchart-decision-grid">
+        <div class="kchart-decision-metric"><small>Trend MA</small><b data-decision-trend>—</b><span data-decision-trend-note>—</span></div>
+        <div class="kchart-decision-metric"><small>Volume candle siap</small><b data-decision-vol>—</b><span data-decision-vol-note>—</span></div>
+        <div class="kchart-decision-metric"><small>Breakout scanner</small><b data-decision-break>—</b><span data-decision-break-note>—</span></div>
+        <div class="kchart-decision-metric"><small>Status scanner</small><b data-decision-scanner>—</b><span data-decision-scanner-note>—</span></div>
+      </div>
+      <p class="kchart-decision-reason" data-decision-reason>Menunggu data carta yang mencukupi…</p>
+      <div class="kchart-decision-action"><button type="button" data-action="paperlab">🧮 Kira Entry di PaperLab</button><span>Kalkulator sahaja · tiada pembelian automatik</span></div>
+      <p class="kchart-decision-disclaimer">Penunjuk sokongan, bukan arahan trade. Trend &amp; volume adalah daripada timeframe carta; breakout ialah penapis scanner 1m/5m. Volume belum tutup tidak digunakan.</p>`;
     const notice=el('div','kchart-notice','Candle terakhir masih terbentuk. Refresh ±20 saat ketika popup aktif; bukan tick-by-tick. Status AVOID/WATCH bukan arahan beli.');
-    section.append(head,priceRow,controls,legend,canvasWrap,footer,notice);
+    section.append(head,priceRow,controls,legend,canvasWrap,footer,decision,notice);
     section.addEventListener('click',e=>{
       const b=e.target.closest('button');if(!b)return;
       if(b.dataset.tf){
@@ -111,6 +123,7 @@
         hoverIndex=-1;updateHeader();loadChart(true);
       }
       if(b.dataset.action==='refresh')loadChart(true);
+      if(b.dataset.action==='paperlab')openPaperLabFromChart();
     });
     cvs.addEventListener('pointermove',e=>{
       if(!lastPlot||!renderedBars.length)return;
@@ -218,7 +231,7 @@
     if(!chart)return;
     lastPayload=payload;
     const bars=payload.candles||[];
-    if(bars.length<2){setText('.kchart-status','Data candle tidak cukup untuk dipaparkan.');return;}
+    if(bars.length<2){setText('.kchart-status','Data candle tidak cukup untuk dipaparkan.');updateDecision(payload);return;}
     const change=(bars[bars.length-1].close/bars[0].open-1)*100;
     const number=Number.isFinite(payload.lastPrice)&&payload.lastPrice>0?payload.lastPrice:bars.at(-1).close;
     setText('[data-role="price"]',fmtPrice(number));
@@ -235,8 +248,102 @@
     statusEl.textContent=`Penapis scanner: ${status}${status==='BUY'?' (semak butiran risiko dahulu)':' — bukan BUY disahkan'}`;
     statusEl.dataset.status=status;
     setText('.kchart-notice',payload.mock?'DATA SIMULASI — bukan harga pasaran sebenar.': 'Candle terbaru masih bergerak. Auto refresh ±20s ketika popup terbuka. Data awam bukan tick-by-tick atau harga order yang dijamin.');
+    updateDecision(payload);
     paint();
   }
+  function scannerRow(symbol) {
+    try {
+      if (typeof state !== 'undefined' && Array.isArray(state?.rows))
+        return state.rows.find(r => r.symbol === symbol) || null;
+    } catch (_) { /* Scanner may expose state only within its own scope. */ }
+    return null;
+  }
+  function putDecision(field, text, tone) {
+    const node=chart?.querySelector(`[data-decision-${field}]`);
+    if (!node) return;
+    node.textContent=String(text);
+    node.dataset.tone=tone || 'neutral';
+  }
+  function lastCompletedIndex(bars) {
+    if (!bars.length) return -1;
+    const last=bars.length-1, interval=(TF_SECONDS[timeframe]||1800)*1000;
+    // KuCoin candle 'time' is the candle OPEN, not its close.
+    return bars[last].time + interval > Date.now() ? last-1 : last;
+  }
+  function updateDecision(payload) {
+    const bars=payload.candles||[];
+    const idx=lastCompletedIndex(bars);
+    const status=String(payload.latestStatus||'DATA').toUpperCase();
+    const row=scannerRow(activeSymbol);
+    const breakout=String(row?.breakout?.signal||'').toUpperCase();
+    const mock=!!payload.mock;
+    const sufficient=idx>=20 && bars.length>=21;
+    let trend='TIDAK CUKUP DATA', trendTone='neutral', trendNote='Perlu 20 candle siap';
+    let isUp=false, volRatio=null, volumeStrong=false;
+    if(sufficient) {
+      const current=bars[idx];
+      const ma5=calcMA(bars,idx,5),ma10=calcMA(bars,idx,10),ma20=calcMA(bars,idx,20);
+      isUp=current.close>ma5 && ma5>ma10 && ma10>ma20;
+      const down=current.close<ma5 && ma5<ma10 && ma10<ma20;
+      trend=isUp?'BULLISH':down?'BEARISH':'BERCAMPUR';
+      trendTone=isUp?'good':down?'bad':'warn';
+      trendNote=`Candle siap: ${fmtPrice(current.close)} · MA5/10/20`;
+      const previous=bars.slice(idx-10,idx).filter(x=>Number.isFinite(x.volume)&&x.volume>=0);
+      if(previous.length===10) {
+        const avg=previous.reduce((t,c)=>t+c.volume,0)/previous.length;
+        if(avg>0 && Number.isFinite(current.volume)) {
+          volRatio=current.volume/avg;
+          volumeStrong=volRatio>=1.5;
+        }
+      }
+    }
+    putDecision('trend',trend,trendTone);
+    putDecision('trend-note',trendNote);
+    putDecision('vol',volRatio===null?'DATA TAK CUKUP':`${volRatio.toFixed(2)}× purata`,volRatio===null?'neutral':volumeStrong?'good':'warn');
+    putDecision('vol-note',`${timeframe} · candle terakhir siap vs 10 sebelumnya · kuat ≥1.5×`);
+    const breakoutKnown=!!breakout;
+    const breakoutConfirmed=breakout==='BREAKOUT';
+    const breakoutText=breakoutKnown?breakout:'RUJUK SCANNER';
+    putDecision('break',breakoutText,breakoutConfirmed?'good':breakoutKnown?'warn':'neutral');
+    putDecision('break-note',breakoutKnown?'Penapis 1m/5m · tidak sama dengan candle 30m':'Status breakout terperinci tidak tersedia');
+    putDecision('scanner',status,status==='BUY'?'good':status==='AVOID'?'bad':'warn');
+    putDecision('scanner-note',status==='BUY'?'BUY lulus penapis asal':status==='AVOID'?'Risiko / penapis scanner tidak lulus':'Belum ada BUY disahkan');
+    let decision='TUNGGU', tone='warn', reason='Tunggu pengesahan penuh pada scanner sebelum mempertimbangkan entry.';
+    if(mock){decision='DATA DEMO';tone='neutral';reason='Ini ialah data simulasi, bukan isyarat pasaran sebenar.';}
+    else if(status==='AVOID'){
+      decision='AVOID';tone='bad';reason='Scanner asal menandakan AVOID. Carta bullish tidak membatalkan penapis kecairan, spread dan risiko.';
+    } else if(!sufficient){
+      decision='DATA TAK CUKUP';tone='neutral';reason='Perlu sekurang-kurangnya 20 candle yang telah tutup untuk semak MA/volume.';
+    } else if(status==='BUY' && isUp && volumeStrong && breakoutConfirmed){
+      decision='SEMAK ENTRY';tone='good';reason='Scanner BUY disahkan, trend MA sehala, volume candle siap menyokong dan breakout terpantau. Semak spread, slippage dan risiko dahulu.';
+    } else if(status==='BUY') {
+      decision='BUY SCANNER · SEMAK';tone='warn';reason='Scanner menunjukkan BUY, tetapi sekurang-kurangnya satu daripada trend MA, volume atau pengesahan breakout carta belum menyokong.';
+    } else if(isUp && volumeStrong) {
+      decision='WATCH';tone='warn';reason='Trend/volume carta menyokong, tetapi scanner belum mengesahkan BUY. Elak entry berdasarkan candle semata-mata.';
+    }
+    const badge=chart?.querySelector('[data-decision-badge]');
+    if(badge){badge.textContent=decision;badge.dataset.tone=tone;}
+    putDecision('reason',reason);
+    putDecision('sub',`${activeSymbol} · timeframe ${timeframe} · candle siap sahaja`);
+  }
+  function openPaperLabFromChart() {
+    if(!validSymbol(activeSymbol))return;
+    // Reuse the original PaperLab detail integration to preserve source, score,
+    // manually set entry, TP/SL and fees when available.
+    const original=document.getElementById('detailPaperLab');
+    if(original && isPopupVisible()) { original.click(); return; }
+    // Fallback when PaperLab integration was not installed on this scanner.
+    const entry=Number(lastPayload?.ask)>0?Number(lastPayload.ask):Number(lastPayload?.lastPrice);
+    if(!(entry>0)){alert('Harga belum tersedia. Refresh carta dahulu.');return;}
+    const url=new URL('/paperlab/',location.origin);
+    url.searchParams.set('symbol',activeSymbol);
+    url.searchParams.set('entry',String(entry));
+    url.searchParams.set('source','RADAR CHART');
+    url.searchParams.set('signal',String(lastPayload?.latestStatus||'WATCH')==='BUY'?'BUY':'WATCH');
+    url.searchParams.set('at',String(Date.now()));
+    location.assign(url.href);
+  }
+
   function clearPolling(){if(pollTimer){clearInterval(pollTimer);pollTimer=null;} if(currentFetch){currentFetch.abort();currentFetch=null;}}
   function beginPolling(){if(pollTimer)clearInterval(pollTimer);pollTimer=setInterval(()=>{if(isPopupVisible())loadChart(false);else clearPolling();},POLL_MS);}
   async function loadChart(manual){

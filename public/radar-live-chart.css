@@ -1,4 +1,4 @@
-/* KuCoin Radar live chart v2.0. Scoped to #radarCandleChart. */
+/* KuCoin Radar live chart v2.1. Scoped to #radarCandleChart. */
 #radarCandleChart{box-sizing:border-box;width:100%;margin:20px 0;padding:16px 16px 13px;border:1px solid #24445b;background:#081724;border-radius:18px;color:#e4eff9;font:500 13px/1.5 system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;overflow:hidden}
 #radarCandleChart *{box-sizing:border-box}
 #radarCandleChart .kchart-head{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
@@ -33,3 +33,29 @@
 #radarCandleChart .kchart-notice{border-top:1px solid #1e4054;padding-top:10px;color:#799eb4;font-size:11px}
 #radarCandleChart [hidden]{display:none!important}
 @media(max-width:650px){#radarCandleChart{padding:12px 8px;border-radius:12px;margin:14px 0}#radarCandleChart .kchart-canvas{height:340px}#radarCandleChart .kchart-24h{width:100%;margin:0}#radarCandleChart .kchart-legend{gap:8px;font-size:10px}#radarCandleChart button.kchart-tf{padding:6px 7px;font-size:11px}#radarCandleChart .kchart-title strong{font-size:11px}}
+
+/* v2.1 — Entry Decision Assistant; no scanner BUY status overrides. */
+#radarCandleChart .kchart-decision{margin:16px 0 12px;background:#0b2130;border:1px solid #29516a;border-radius:14px;padding:14px;color:#deedf8}
+#radarCandleChart .kchart-decision-head{display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap;margin-bottom:13px}
+#radarCandleChart .kchart-decision-head>div{display:flex;flex-direction:column;gap:2px}
+#radarCandleChart .kchart-decision-head strong{color:#31ddbf;font-size:12px;letter-spacing:.08em}
+#radarCandleChart .kchart-decision-head span{font-size:11px;color:#9bb2c6}
+#radarCandleChart .kchart-decision-badge{border:1px solid #8e7238;background:#3b3420;color:#f5d17c;padding:6px 10px;font-size:12px;border-radius:8px}
+#radarCandleChart .kchart-decision-badge[data-tone="good"]{background:#103b35;border-color:#2a897a;color:#74f4d7}
+#radarCandleChart .kchart-decision-badge[data-tone="bad"]{background:#451e31;border-color:#a14965;color:#ffa6b2}
+#radarCandleChart .kchart-decision-badge[data-tone="neutral"]{background:#193243;border-color:#3c6277;color:#b6cddd}
+#radarCandleChart .kchart-decision-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+#radarCandleChart .kchart-decision-metric{display:flex;flex-direction:column;gap:5px;background:#101c2c;border:1px solid #274257;padding:11px;border-radius:10px;min-width:0}
+#radarCandleChart .kchart-decision-metric small{color:#90a9bc;font-size:11px}
+#radarCandleChart .kchart-decision-metric b{font-size:14px;overflow-wrap:anywhere}
+#radarCandleChart .kchart-decision-metric b[data-tone="good"]{color:#47dfb6}
+#radarCandleChart .kchart-decision-metric b[data-tone="bad"]{color:#ff8398}
+#radarCandleChart .kchart-decision-metric b[data-tone="warn"]{color:#f5ca72}
+#radarCandleChart .kchart-decision-metric span{font-size:10px;line-height:1.45;color:#8faabe;overflow-wrap:anywhere}
+#radarCandleChart .kchart-decision-reason{font-size:12px;color:#c9dbe8;margin:12px 0;line-height:1.6}
+#radarCandleChart .kchart-decision-action{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-top:10px}
+#radarCandleChart .kchart-decision-action button{background:#21d9af;color:#082a2b;border:1px solid #39e6c0;border-radius:10px;font-weight:800;font-size:13px;line-height:1.3;cursor:pointer;padding:12px 15px;min-height:40px}
+#radarCandleChart .kchart-decision-action button:hover{background:#72efd2}
+#radarCandleChart .kchart-decision-action span{font-size:11px;color:#92b8c6}
+#radarCandleChart .kchart-decision-disclaimer{font-size:10px;line-height:1.5;color:#8dabbd;margin:12px 0 0}
+@media(max-width:520px){#radarCandleChart .kchart-decision{padding:11px 9px}#radarCandleChart .kchart-decision-metric{padding:9px 8px}#radarCandleChart .kchart-decision-metric b{font-size:12px}#radarCandleChart .kchart-decision-action button{width:100%}}
