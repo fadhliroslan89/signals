@@ -7,7 +7,7 @@
   <meta name="description" content="Kalkulator take profit dan paper trading KuCoin Spot USDT. Simulasi sahaja, tiada transaksi sebenar."/>
   <link rel="manifest" href="./manifest.webmanifest"/>
   <link rel="icon" href="./icon.svg" type="image/svg+xml"/>
-  <title>KuCoin PaperLab v1.5 — Cloud Journal Sync</title>
+  <title>KuCoin PaperLab v1.5.2 — Editable OPEN Journal</title>
   <style>
     :root{--bg:#080d17;--surface:#0e1725;--surface2:#142031;--surface3:#1b2a3d;--stroke:#293648;--muted:#8b9bad;--text:#f2f7fc;--green:#3fe3b3;--greenSoft:rgba(63,227,179,.13);--red:#ff6a85;--redSoft:rgba(255,106,133,.12);--blue:#7dabff;--orange:#ffcb77;--shadow:0 16px 48px rgba(0,0,0,.17);color-scheme:dark}
     *{box-sizing:border-box}html{scroll-behavior:smooth}body{background:var(--bg);color:var(--text);font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;margin:0;min-height:100vh}button,input,select,textarea{font:inherit}button{cursor:pointer}button:disabled{opacity:.45;cursor:not-allowed}a{color:inherit;text-decoration:none}input,select,textarea{width:100%;border:1px solid var(--stroke);border-radius:12px;background:#0b1421;color:var(--text);padding:13px 14px;outline:none;transition:border .2s,box-shadow .2s}input:focus,textarea:focus,select:focus{border-color:#52c8b2;box-shadow:0 0 0 3px rgba(63,227,179,.1)}input::placeholder,textarea::placeholder{color:#63758a}input[type=number]{font-variant-numeric:tabular-nums}input[type=number]::-webkit-inner-spin-button{appearance:none}input[type=number]{-moz-appearance:textfield}button:focus-visible,a:focus-visible{outline:2px solid var(--green);outline-offset:3px}
@@ -29,6 +29,18 @@
     .coin-input .pair-suffix{flex:0 0 auto;pointer-events:none;white-space:nowrap;padding:0 14px 0 3px;color:#91acbd;font-size:12px;font-weight:800;letter-spacing:.2px}
     @media(max-width:610px){.coin-input input{padding:12px 11px}.coin-input .pair-suffix{font-size:11px;padding-right:8px}}
   
+
+  /* v1.5.2: safe editor for OPEN paper positions */
+  #editTradeModal{width:min(590px,calc(100% - 24px))}
+  .edit-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .edit-grid .field{margin:0}
+  .edit-summary{background:#111d2b;border:1px solid var(--stroke);border-radius:13px;padding:15px;margin:16px 0 0;line-height:1.75;font-size:12px}
+  .edit-summary strong{font-variant-numeric:tabular-nums}
+  .edit-summary .key{color:var(--muted)}
+  .edit-open-button{white-space:nowrap;border-color:#296859;color:var(--green)}
+  .edit-error{border:1px solid #905263;border-radius:10px;background:var(--redSoft);color:#ffbcc9;padding:10px 12px;font-size:12px;margin-top:12px}
+  @media(max-width:620px){.edit-grid{grid-template-columns:1fr 1fr;gap:10px}.edit-grid input{padding:12px 10px}#editTradeModal .actions{flex-wrap:wrap}}
+  @media(max-width:430px){.edit-grid{grid-template-columns:1fr}.trade-actions{justify-content:flex-start;flex-wrap:wrap}}
   /* v1.5 Cloud Journal: public-key Supabase Auth + RLS-protected sync */
   [hidden]{display:none!important}
   .cloud-panel{margin-top:18px}
@@ -117,7 +129,7 @@
   </section>
 
   <section class="panel journal" id="journal">
-    <div class="journal-head"><div class="panel-title"><div><h2>04 / Paper trading journal</h2><p>Catat trade dan rekod keputusan. Data disimpan di browser; Cloud Sync pilihan boleh disambungkan melalui login. Monitor hanya aktif dalam tab yang sedang dibuka.</p></div></div><div class="journal-tools"><button class="ghost tiny" id="updateOpenQuotes">↻ Update harga</button><button class="ghost tiny" id="downloadCSV">↓ Export CSV</button></div></div>
+    <div class="journal-head"><div class="panel-title"><div><h2>04 / Paper trading journal</h2><p>Catat trade dan rekod keputusan. Posisi OPEN boleh diubah melalui butang Edit (entry, modal, TP/SL). Cloud Sync kekal tersedia selepas login; monitor hanya aktif pada tab ini.</p></div></div><div class="journal-tools"><button class="ghost tiny" id="updateOpenQuotes">↻ Update harga</button><button class="ghost tiny" id="downloadCSV">↓ Export CSV</button></div></div>
     <div class="tabs" role="tablist"><button class="active" data-tab="open">Open <span id="openCount">0</span></button><button data-tab="closed">Closed <span id="closedCount">0</span></button><button data-tab="all">Semua</button></div>
     <div class="journal-content" id="journalContent"></div>
   </section>
@@ -135,16 +147,32 @@
     </div>
     <p class="cloud-note">Data sedia ada tidak dipadam. Kali pertama login, pilih sama ada menggunakan data Cloud atau menghantar data browser. Selepas dipaut, sync berjalan semasa halaman aktif dan mempunyai internet. Jika dua device mengubah journal serentak, sync akan berhenti untuk elakkan data tertimpa. Auto Monitor TP/SL masih hanya berjalan dalam tab yang aktif, bukan server 24/7. Elakkan monitor pada dua device serentak.</p>
   </section>
-  <footer class="foot"><span>KUCOIN PAPERLAB V1.5 · Dibina untuk latihan, bukan order sebenar. Simpan local dahulu; cloud sync selepas login Supabase. Eksport CSV untuk backup.</span><span>Rujukan KuCoin: <a href="https://www.kucoin.com/docs-new/api-3470160" target="_blank" rel="noopener">API documentation</a></span></footer>
+  <footer class="foot"><span>KUCOIN PAPERLAB V1.5.2 · Dibina untuk latihan, bukan order sebenar. Simpan local dahulu; cloud sync selepas login Supabase. Eksport CSV untuk backup.</span><span>Rujukan KuCoin: <a href="https://www.kucoin.com/docs-new/api-3470160" target="_blank" rel="noopener">API documentation</a></span></footer>
 </div>
 <dialog id="settingsModal"><div class="modal-head"><h3>⚙ Tetapan paper wallet</h3><button class="ghost tiny" data-close="settingsModal">✕</button></div><p class="modal-p">Tetapkan nilai permulaan akaun demo. Reset akan memadam semua paper trades pada browser ini.</p><div class="field"><label for="initialWallet">Modal awal wallet virtual (USDT)</label><input id="initialWallet" type="number" min="1" step="any" value="1000"/></div><div class="actions"><button class="btn secondary" data-close="settingsModal">Batal</button><button class="btn danger" id="resetWallet">Reset wallet + journal</button></div></dialog>
 <dialog id="importModal"><div class="modal-head"><h3>↧ Import signal</h3><button class="ghost tiny" data-close="importModal">✕</button></div><p class="modal-p">Paste signal KuCoin dari scanner sebelumnya. App cuba baca pair, entry, TP dan SL. Semak semula nilai sebelum buka paper trade.</p><textarea id="signalText" placeholder="CONTOH:\nBUY SOL-USDT\nEntry: 150\nTP: 157\nSL: 147\nScore: 88"></textarea><div class="actions"><button class="btn secondary" data-close="importModal">Batal</button><button class="btn" id="parseSignal">Baca signal</button></div><p class="hint">Sambungan automatik daripada KuCoin Radar v1.9.5 menyokong parameter URL: symbol, entry, tp, sl dan score.</p></dialog>
 <dialog id="closeModal"><div class="modal-head"><h3>Tutup paper trade</h3><button class="ghost tiny" data-close="closeModal">✕</button></div><p class="modal-p" id="closeDesc"></p><div class="field"><label for="exitPrice">Harga jual simulasi (USDT)</label><input id="exitPrice" type="number" min="0" step="any" inputmode="decimal"/></div><div class="field"><label for="exitReason">Sebab keluar</label><select id="exitReason"><option value="MANUAL">Manual</option><option value="TP">Take profit</option><option value="SL">Stop loss</option></select></div><div class="field"><label for="closeNote">Nota selepas trade (pilihan)</label><textarea id="closeNote" style="min-height:70px" maxlength="250" placeholder="cth. Breakout failed / TP hit"></textarea></div><div class="metric"><span>Anggaran P&L bersih</span><strong id="closePreview">—</strong></div><div class="actions"><button class="btn secondary" data-close="closeModal">Batal</button><button class="btn" id="confirmClose">Sahkan close</button></div></dialog>
+<dialog id="editTradeModal" aria-labelledby="editTradeTitle">
+  <div class="modal-head"><h3 id="editTradeTitle">✎ Edit posisi OPEN</h3><button class="ghost tiny" data-close="editTradeModal" type="button" aria-label="Tutup editor">✕</button></div>
+  <p id="editTradeDesc" class="modal-p"></p>
+  <div class="edit-grid">
+    <div class="field"><label for="editEntry">Entry price (USDT)</label><input id="editEntry" type="number" min="0" step="any" inputmode="decimal"/></div>
+    <div class="field"><label for="editCapital">Size / modal (USDT)</label><input id="editCapital" type="number" min="0" step="any" inputmode="decimal"/></div>
+    <div class="field"><label for="editTP">Take Profit price (USDT)</label><input id="editTP" type="number" min="0" step="any" inputmode="decimal"/></div>
+    <div class="field"><label for="editTPPct">Jarak harga TP (%)</label><input id="editTPPct" type="number" step="any" inputmode="decimal"/><div class="hint">Kenaikan harga, BUKAN % profit bersih.</div></div>
+    <div class="field"><label for="editSL">Stop Loss price (USDT)</label><input id="editSL" type="number" min="0" step="any" inputmode="decimal"/></div>
+    <div class="field"><label for="editSLPct">Jarak harga SL (%)</label><input id="editSLPct" type="number" step="any" inputmode="decimal"/></div>
+  </div>
+  <div id="editTradeError" class="edit-error" role="alert" hidden></div>
+  <div class="edit-summary" id="editTradePreview" aria-live="polite">Kiraan akan dipaparkan di sini.</div>
+  <p class="hint">Edit ini mengubah andaian posisi simulasi, bukan transaksi KuCoin sebenar. Pair dan masa asal kekal. Setiap pindaan disimpan dalam sejarah edit. Auto Monitor dihentikan semasa mengedit; hidupkan semula selepas semak TP/SL.</p>
+  <div class="actions"><button class="btn secondary" data-close="editTradeModal" type="button">Batal</button><button class="btn" id="confirmEditTrade" type="button">Simpan perubahan</button></div>
+</dialog>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <script>
 (()=>{'use strict';
 const $=id=>document.getElementById(id), n=v=>Number(String(v??'').replace(',','.')), price=v=>{if(!Number.isFinite(v)||v<=0)return '—';const d=v>=1000?3:v>=1?5:v>=0.01?7:10;return v.toLocaleString('en-US',{minimumFractionDigits:0,maximumFractionDigits:d})}, usd=v=>Number.isFinite(v)?v.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}):'—', qtyFmt=v=>Number.isFinite(v)?v.toLocaleString('en-US',{maximumFractionDigits:9}):'—', esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])), dt=s=>{try{return new Date(s).toLocaleString('ms-MY',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'})}catch{return s}}, idgen=()=>typeof crypto!=='undefined'&&crypto.randomUUID?crypto.randomUUID():'pt-'+Date.now()+'-'+Math.random().toString(36).slice(2,7);
-let state, targetMode='pct', stopMode='pct', journalTab='open', activeCloseId=null, calc=null, lastLive=null, toastTimer;
+let state, targetMode='pct', stopMode='pct', journalTab='open', activeCloseId=null, activeEditId=null, editSnapshot=null, calc=null, lastLive=null, toastTimer;
 const emptyState=bal=>({version:1,initialBalance:bal,cash:bal,trades:[]});
 try{const saved=JSON.parse(localStorage.getItem('kucoin-paperlab-v1'));state=saved?.version===1&&Array.isArray(saved.trades)&&Number.isFinite(saved.cash)?saved:emptyState(1000)}catch{state=emptyState(1000)}
 function save(){try{localStorage.setItem('kucoin-paperlab-v1',JSON.stringify(state))}catch{toast('Storage tidak tersedia. Eksport CSV untuk backup.','warn')}}
@@ -189,12 +217,100 @@ $('getLive').onclick=async()=>{const s=normalizeSymbol($('symbol').value);if(!s)
 $('exampleBtn').onclick=()=>{$('symbol').value='SOL';$('entry').value='150';$('capital').value='100';$('targetValue').value=targetMode==='pct'?'4':'4';$('stopPct').value='2';$('tradeNote').value='CONTOH SAHAJA — bukan harga semasa';lastLive=null;stopMode='pct';updateStopFromPct();setPresets();toast('Data contoh telah diisi. Bukan quote live.')};
 function renderWallet(){const op=state.trades.filter(t=>t.status==='OPEN'),cl=state.trades.filter(t=>t.status==='CLOSED'),real=cl.reduce((a,t)=>a+t.realized,0),mark=op.reduce((a,t)=>a+t.qty*(t.markPrice||t.entry)*(1-t.sellFee),0),eq=state.cash+mark,wins=cl.filter(t=>t.realized>0).length;$('walletCash').textContent=usd(state.cash);$('walletEquity').textContent=usd(eq);$('walletRealized').textContent=(real>=0?'+':'')+usd(real);$('walletRealized').className=real>0?'green':real<0?'red':'';$('walletWinRate').textContent=cl.length?(100*wins/cl.length).toFixed(1)+'%':'—';$('winTradeCount').textContent=cl.length+' trade';$('openCount').textContent=op.length;$('closedCount').textContent=cl.length;}
 $('openPaper').onclick=()=>{if(!calc||calc.error){toast('Semak input kalkulator dahulu.','warn');return}const c=calc;if(c.need>state.cash+1e-8){toast('Baki wallet tidak cukup. Kurangkan modal atau ubah wallet demo.','warn');return}const trade={id:idgen(),symbol:c.symbol,entry:c.entry,capital:c.capital,qty:c.qty,feeBuy:c.capital*c.bu,buyFee:c.bu,sellFee:c.se,tp:c.priceTP,sl:c.sl,targetProfit:c.profit,markPrice:c.entry,note:c.note,status:'OPEN',openedAt:new Date().toISOString()};state.cash=Math.max(0,state.cash-c.need);state.trades.unshift(trade);save();renderAll();toast('Paper trade '+c.symbol+' berjaya dibuka.');$('journal').scrollIntoView({behavior:'smooth',block:'start'})};
-function renderJournal(){const filtered=state.trades.filter(t=>journalTab==='all'||(journalTab==='open'?t.status==='OPEN':t.status==='CLOSED'));const el=$('journalContent');if(!filtered.length){el.innerHTML='<div class="empty"><span class="symbol">◎</span>Tiada '+(journalTab==='open'?'paper trade aktif':journalTab==='closed'?'trade yang sudah ditutup':'paper trade')+'.<br>Gunakan kalkulator dan klik <b>+ Buka paper trade</b> untuk mula.</div>';return}el.innerHTML='<div class="table-scroll"><table class="trade-table"><thead><tr><th>Pair / masa</th><th>Entry / size</th><th>TP / SL</th><th>Harga '+(journalTab==='closed'?'exit':'mark')+'</th><th>Net P&L</th><th>Status</th><th style="text-align:right">Tindakan</th></tr></thead><tbody>'+filtered.map(t=>{const isOpen=t.status==='OPEN',v=isOpen?pnlAt(t,t.markPrice||t.entry):t.realized,pc=v/t.capital*100,h=esc(t.id),quote=t.markPrice||t.entry;return '<tr><td><strong>'+esc(t.symbol)+'</strong><small>'+dt(t.openedAt)+'</small>'+ (t.note?'<small title="'+esc(t.note)+'">'+esc(t.note.slice(0,36))+'</small>':'')+'</td><td><strong>'+price(t.entry)+'</strong><small>'+usd(t.capital)+' USDT</small></td><td><span class="green">'+price(t.tp)+'</span><small class="red">'+price(t.sl)+'</small></td><td>'+(isOpen?'<input aria-label="Mark price '+esc(t.symbol)+'" class="quote-input" type="number" min="0" step="any" data-mark="'+h+'" value="'+quote+'" />':'<strong>'+price(t.exitPrice)+'</strong><small>'+dt(t.closedAt)+'</small>')+'</td><td><strong class="'+(v>=0?'green':'red')+'">'+(v>=0?'+':'')+usd(v)+'</strong><small>'+(pc>=0?'+':'')+pc.toFixed(2)+'%</small></td><td><span class="status-chip '+(isOpen?'open':v>0?'win':'loss')+'">'+(isOpen?'● OPEN':v>0?'✓ WIN':v<0?'↘ LOSS':'FLAT')+'</span>'+(isOpen&&quote>=t.tp?'<small class="green">TP reached*</small>':isOpen&&quote<=t.sl?'<small class="red">SL reached*</small>':'')+'</td><td><div class="trade-actions">'+(isOpen?'<button class="ghost tiny" data-quote="'+h+'" title="Update live KuCoin">↻</button><button class="btn tiny" data-close-trade="'+h+'">Close</button>':'<span class="small-helper">'+esc(t.exitReason||'MANUAL')+'</span>')+'</div></td></tr>'}).join('')+'</tbody></table></div><div class="hint" style="margin-top:13px">* Label TP/SL reached bergantung pada harga yang dikemas kini, bukan order automatik. Nilai open P&L ialah anggaran. Auto-close dicatat sebagai AUTO_TP/AUTO_SL pada harga pemerhatian, bukan jaminan fill TP/SL.</div>'}
+function renderJournal(){const filtered=state.trades.filter(t=>journalTab==='all'||(journalTab==='open'?t.status==='OPEN':t.status==='CLOSED'));const el=$('journalContent');if(!filtered.length){el.innerHTML='<div class="empty"><span class="symbol">◎</span>Tiada '+(journalTab==='open'?'paper trade aktif':journalTab==='closed'?'trade yang sudah ditutup':'paper trade')+'.<br>Gunakan kalkulator dan klik <b>+ Buka paper trade</b> untuk mula.</div>';return}el.innerHTML='<div class="table-scroll"><table class="trade-table"><thead><tr><th>Pair / masa</th><th>Entry / size</th><th>TP / SL</th><th>Harga '+(journalTab==='closed'?'exit':'mark')+'</th><th>Net P&L</th><th>Status</th><th style="text-align:right">Tindakan</th></tr></thead><tbody>'+filtered.map(t=>{const isOpen=t.status==='OPEN',v=isOpen?pnlAt(t,t.markPrice||t.entry):t.realized,pc=v/t.capital*100,h=esc(t.id),quote=t.markPrice||t.entry;return '<tr><td><strong>'+esc(t.symbol)+'</strong><small>'+dt(t.openedAt)+'</small>'+ (t.note?'<small title="'+esc(t.note)+'">'+esc(t.note.slice(0,36))+'</small>':'')+'</td><td><strong>'+price(t.entry)+'</strong><small>'+usd(t.capital)+' USDT</small></td><td><span class="green">'+price(t.tp)+'</span><small class="red">'+price(t.sl)+'</small></td><td>'+(isOpen?'<input aria-label="Mark price '+esc(t.symbol)+'" class="quote-input" type="number" min="0" step="any" data-mark="'+h+'" value="'+quote+'" />':'<strong>'+price(t.exitPrice)+'</strong><small>'+dt(t.closedAt)+'</small>')+'</td><td><strong class="'+(v>=0?'green':'red')+'">'+(v>=0?'+':'')+usd(v)+'</strong><small>'+(pc>=0?'+':'')+pc.toFixed(2)+'%</small></td><td><span class="status-chip '+(isOpen?'open':v>0?'win':'loss')+'">'+(isOpen?'● OPEN':v>0?'✓ WIN':v<0?'↘ LOSS':'FLAT')+'</span>'+(isOpen&&quote>=t.tp?'<small class="green">TP reached*</small>':isOpen&&quote<=t.sl?'<small class="red">SL reached*</small>':'')+'</td><td><div class="trade-actions">'+(isOpen?'<button class="ghost tiny" data-quote="'+h+'" title="Update live KuCoin">↻</button><button class="ghost tiny edit-open-button" data-edit-trade="'+h+'" title="Ubah Entry, Modal, TP/SL">✎ Edit</button><button class="btn tiny" data-close-trade="'+h+'">Close</button>':'<span class="small-helper">'+esc(t.exitReason||'MANUAL')+'</span>')+'</div></td></tr>'}).join('')+'</tbody></table></div><div class="hint" style="margin-top:13px">* Label TP/SL reached bergantung pada harga yang dikemas kini, bukan order automatik. Nilai open P&L ialah anggaran. Auto-close dicatat sebagai AUTO_TP/AUTO_SL pada harga pemerhatian, bukan jaminan fill TP/SL.</div>'}
 function renderAll(){renderWallet();renderJournal();renderMonitorCounters()}
 document.querySelectorAll('.tabs [data-tab]').forEach(b=>b.onclick=()=>{journalTab=b.dataset.tab;document.querySelectorAll('.tabs [data-tab]').forEach(x=>x.classList.toggle('active',x===b));renderJournal()});
 $('journalContent').addEventListener('change',e=>{const i=e.target;if(!i.matches('[data-mark]'))return;const t=state.trades.find(t=>t.id===i.dataset.mark);if(!t)return;const v=n(i.value);if(!(v>0)){toast('Mark price mesti positif.','warn');renderJournal();return}t.markPrice=v;save();renderAll()});
 async function updateOne(t,btn){if(!t||t.status!=='OPEN')return;if(btn){btn.disabled=true;btn.textContent='…'}try{t.markPrice=await fetchPrice(t.symbol);t.markedAt=new Date().toISOString();save();renderAll();toast('Harga '+t.symbol+' dikemas kini.')}catch(e){toast('KuCoin gagal beri harga '+t.symbol+'. Gunakan input manual.','warn');if(btn){btn.disabled=false;btn.textContent='↻'}}}
-$('journalContent').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;if(b.dataset.quote){updateOne(state.trades.find(t=>t.id===b.dataset.quote),b)}else if(b.dataset.closeTrade){const t=state.trades.find(t=>t.id===b.dataset.closeTrade);if(t)showClose(t)}});
+// Editor only changes OPEN simulations. qty / buy fee / cash must be recalculated together.
+function showEdit(t){
+  if(!t||t.status!=='OPEN')return;
+  if(monitorBusy){toast('Semakan Auto Monitor masih berjalan. Cuba selepas semakan selesai.','warn');return}
+  if(monitorRunning)stopMonitor('● Dihentikan sementara untuk edit posisi — semak dan mula semula');
+  activeEditId=t.id;editSnapshot=JSON.stringify(state);
+  $('editTradeDesc').textContent=t.symbol+' · dibuka '+dt(t.openedAt)+' · fee beli '+(t.buyFee*100).toFixed(3)+'% / jual '+(t.sellFee*100).toFixed(3)+'%';
+  $('editEntry').value=String(t.entry);
+  $('editCapital').value=String(t.capital);
+  $('editTP').value=String(t.tp);
+  $('editSL').value=String(t.sl);
+  setEditPct('tp');setEditPct('sl');
+  $('editTradeError').hidden=true;
+  previewEdit();$('editTradeModal').showModal();
+}
+function setEditPct(field){
+  const entry=n($('editEntry').value),p=n($(field==='tp'?'editTP':'editSL').value);
+  const v=entry>0&&p>0?(field==='tp'?(p/entry-1)*100:(1-p/entry)*100):0;
+  $(field==='tp'?'editTPPct':'editSLPct').value=Number(v.toFixed(6));
+}
+function setEditPricesFromPct(){
+  const entry=n($('editEntry').value);
+  for(const [key,pct,sgn] of [['editTP','editTPPct',1],['editSL','editSLPct',-1]]){
+    const v=entry*(1+sgn*n($(pct).value)/100);
+    $(key).value=Number.isFinite(v)&&v>0?String(Number(v.toPrecision(12))):'';
+  }
+  previewEdit();
+}
+$('editEntry').addEventListener('input',setEditPricesFromPct);
+$('editCapital').addEventListener('input',previewEdit);
+for(const field of ['tp','sl']){
+  $(field==='tp'?'editTP':'editSL').addEventListener('input',()=>{setEditPct(field);previewEdit()});
+  $(field==='tp'?'editTPPct':'editSLPct').addEventListener('input',()=>{
+    const entry=n($('editEntry').value),pct=n($(field==='tp'?'editTPPct':'editSLPct').value);
+    const v=entry*(field==='tp'?1+pct/100:1-pct/100);
+    $(field==='tp'?'editTP':'editSL').value=Number.isFinite(v)&&v>0?String(Number(v.toPrecision(12))):'';
+    previewEdit();
+  });
+}
+function editValues(){
+  const t=state.trades.find(x=>x.id===activeEditId&&x.status==='OPEN');
+  if(!t)return {error:'Posisi ini sudah tidak OPEN. Tutup editor dan refresh journal.'};
+  const entry=n($('editEntry').value),capital=n($('editCapital').value),tp=n($('editTP').value),sl=n($('editSL').value);
+  if(![entry,capital,tp,sl].every(v=>Number.isFinite(v)&&v>0))return {error:'Semua harga dan modal mesti lebih besar daripada sifar.'};
+  if(entry>1e12||capital>1e10||tp>1e12||sl>1e12)return {error:'Nilai terlalu besar. Semak angka yang ditaip.'};
+  if(!(sl<entry))return {error:'Stop Loss mesti di bawah harga entry.'};
+  const bu=Number(t.buyFee),se=Number(t.sellFee);
+  if(!Number.isFinite(bu)||!Number.isFinite(se)||bu<0||se<0||bu>=1||se>=1)return {error:'Kadar fee pada rekod tidak sah.'};
+  const breakEven=entry*(1+bu)/(1-se);
+  if(!(tp>breakEven))return {error:'Harga TP mesti melebihi break-even ('+price(breakEven)+') selepas fee.'};
+  const available=state.cash+t.capital*(1+bu),need=capital*(1+bu);
+  if(need>available+1e-8)return {error:'Baki tidak mencukupi. Maksimum modal kira-kira '+usd(available/(1+bu))+' USDT selepas memulangkan modal lama.'};
+  const qty=capital/entry,targetProfit=qty*tp*(1-se)-need,slLoss=need-qty*sl*(1-se);
+  const cash=available-need;
+  if(![qty,targetProfit,slLoss,cash].every(Number.isFinite)||qty<=0||targetProfit<=0)return {error:'Kiraan tidak sah. Semak harga dan modal.'};
+  return {t,entry,capital,tp,sl,qty,need,cash,targetProfit,slLoss};
+}
+function previewEdit(){
+  const v=editValues(),el=$('editTradePreview'),msg=$('editTradeError'),btn=$('confirmEditTrade');
+  if(v.error){msg.hidden=false;msg.textContent=v.error;el.textContent='Betulkan maklumat untuk lihat kiraan baharu.';btn.disabled=true;return}
+  msg.hidden=true;btn.disabled=false;
+  const projectedMark=!v.t.markedAt&&!v.t.monitorQuoteAt&&v.t.markPrice===v.t.entry?v.entry:(v.t.markPrice||v.entry);
+  const projected=v.qty*projectedMark*(1-v.t.sellFee)-v.need;
+  el.innerHTML='<div><span class="key">Unit coin:</span> <strong>'+qtyFmt(v.qty)+'</strong></div>'+
+    '<div><span class="key">Untung bersih jika TP:</span> <strong class="green">+'+usd(v.targetProfit)+' USDT</strong></div>'+
+    '<div><span class="key">Anggaran rugi jika SL:</span> <strong class="red">-'+usd(v.slLoss)+' USDT</strong></div>'+
+    '<div><span class="key">Open P&L pada mark tersimpan:</span> <strong class="'+(projected>=0?'green':'red')+'">'+(projected>=0?'+':'')+usd(projected)+' USDT</strong></div>'+
+    '<div><span class="key">Baki virtual selepas edit:</span> <strong>'+usd(Math.max(0,v.cash))+' USDT</strong></div>';
+}
+$('confirmEditTrade').onclick=()=>{
+  const v=editValues();if(v.error){previewEdit();toast(v.error,'warn');return}
+  if(JSON.stringify(state)!==editSnapshot){toast('Journal berubah semasa editor dibuka. Buka Edit semula supaya rekod terbaru tidak tertimpa.','warn');$('editTradeModal').close();activeEditId=null;return}
+  const t=v.t,old={entry:t.entry,capital:t.capital,tp:t.tp,sl:t.sl};
+  if(old.entry===v.entry&&old.capital===v.capital&&old.tp===v.tp&&old.sl===v.sl){$('editTradeModal').close();activeEditId=null;toast('Tiada perubahan dibuat.');return}
+  // Preserve an undo/audit trail, without falsifying original symbol/time or closed positions.
+  const at=new Date().toISOString();
+  t.editHistory=Array.isArray(t.editHistory)?t.editHistory:[];
+  t.editHistory.push({at,before:old,after:{entry:v.entry,capital:v.capital,tp:v.tp,sl:v.sl}});
+  if(t.editHistory.length>30)t.editHistory=t.editHistory.slice(-30);
+  const wasUnmarked=!t.markedAt&&!t.monitorQuoteAt&&t.markPrice===t.entry;
+  t.entry=v.entry;t.capital=v.capital;t.qty=v.qty;t.feeBuy=v.capital*t.buyFee;
+  t.tp=v.tp;t.sl=v.sl;t.targetProfit=v.targetProfit;t.editedAt=at;
+  if(wasUnmarked)t.markPrice=v.entry;
+  state.cash=Math.max(0,v.cash);
+  save();renderAll();$('editTradeModal').close();activeEditId=null;editSnapshot=null;
+  toast('Posisi '+t.symbol+' dikemas kini. TP/SL dan P&L dikira semula; Cloud Sync menyimpan perubahan apabila online.');
+};
+$('editTradeModal').addEventListener('close',()=>{activeEditId=null;editSnapshot=null});
+$('journalContent').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;if(b.dataset.editTrade){const t=state.trades.find(t=>t.id===b.dataset.editTrade);if(t)showEdit(t)}else if(b.dataset.quote){updateOne(state.trades.find(t=>t.id===b.dataset.quote),b)}else if(b.dataset.closeTrade){const t=state.trades.find(t=>t.id===b.dataset.closeTrade);if(t)showClose(t)}});
 $('updateOpenQuotes').onclick=async()=>{const open=state.trades.filter(t=>t.status==='OPEN');if(!open.length){toast('Tiada posisi open.');return}const b=$('updateOpenQuotes');b.disabled=true;b.textContent='⏳ Updating...';let cnt=0;for(const t of open.slice(0,15)){try{t.markPrice=await fetchPrice(t.symbol);t.markedAt=new Date().toISOString();cnt++}catch{}}save();renderAll();b.disabled=false;b.textContent='↻ Update harga';toast(cnt+' / '+Math.min(open.length,15)+' harga berjaya dikemas kini.'+(open.length>15?' Maksimum 15 setiap klik.':''),cnt?'ok':'warn')};
 function showClose(t){activeCloseId=t.id;$('closeDesc').textContent=t.symbol+' · entry '+price(t.entry)+' · TP '+price(t.tp)+' · SL '+price(t.sl);$('exitPrice').value=String(t.markPrice||t.entry);$('exitReason').value='MANUAL';$('closeNote').value='';closePreview();$('closeModal').showModal()}
 function closePreview(){const t=state.trades.find(x=>x.id===activeCloseId);if(!t)return;const p=n($('exitPrice').value),v=p>0?pnlAt(t,p):NaN;const e=$('closePreview');e.textContent=(v>=0?'+':'')+usd(v)+' USDT';e.className=v>=0?'green':'red'}$('exitPrice').addEventListener('input',closePreview);$('exitReason').addEventListener('change',()=>{const t=state.trades.find(x=>x.id===activeCloseId);if(!t)return;const r=$('exitReason').value;if(r==='TP')$('exitPrice').value=t.tp;if(r==='SL')$('exitPrice').value=t.sl;closePreview()});
@@ -209,7 +325,7 @@ function closeTradeRecord(t,exit,reason,note=''){
 $('confirmClose').onclick=()=>{const t=state.trades.find(t=>t.id===activeCloseId&&t.status==='OPEN');const exit=n($('exitPrice').value);if(!t||!(exit>0)){toast('Harga exit tidak sah.','warn');return}closeTradeRecord(t,exit,$('exitReason').value,$('closeNote').value.trim());save();$('closeModal').close();activeCloseId=null;renderAll();toast('Trade ditutup. P&L bersih '+(t.realized>=0?'+':'')+usd(t.realized)+' USDT.')};
 $('copyTargets').onclick=async()=>{if(!calc||calc.error){toast('Masukkan data kalkulator dahulu.','warn');return}const c=calc,s=['KUCOIN PAPERLAB / SIMULASI','Pair: '+c.symbol,'Entry: '+price(c.entry),'Modal: '+usd(c.capital)+' USDT','TP: '+price(c.priceTP)+' (gross price +'+c.tpPct.toFixed(2)+'%)','SL: '+price(c.sl)+' (-'+c.slPct.toFixed(2)+'%)','Break-even: '+price(c.be),'Net profit target: +'+usd(c.profit)+' USDT','Net SL loss: -'+usd(c.risk)+' USDT','R:R = 1:'+c.ratio.toFixed(2),'Fee: '+(c.bu*100)+'% buy / '+(c.se*100)+'% sell'].join('\n');try{await navigator.clipboard.writeText(s);toast('Target berjaya disalin.')}catch{const ta=document.createElement('textarea');ta.value=s;document.body.append(ta);ta.select();document.execCommand('copy');ta.remove();toast('Target disalin.')}};
 function csvSafe(v){let s=String(v??'');if(/^[=+@\-\t\r]/.test(s)&&!/^-[0-9.]+$/.test(s))s="'"+s;return '"'+s.replace(/"/g,'""')+'"'}
-$('downloadCSV').onclick=()=>{if(!state.trades.length){toast('Tiada trade untuk dieksport.','warn');return}const headers=['id','pair','status','opened_at','closed_at','entry_price','capital_usdt','quantity','target_price','stop_price','mark_price','exit_price','fee_buy_pct','fee_sell_pct','realized_pnl_usdt','exit_reason','note','close_note','price_snapshot_at','auto_quote_age_seconds'];const rows=[headers,...state.trades.map(t=>[t.id,t.symbol,t.status,t.openedAt,t.closedAt||'',t.entry,t.capital,t.qty,t.tp,t.sl,t.markPrice,t.exitPrice||'',t.buyFee*100,t.sellFee*100,t.status==='CLOSED'?t.realized:'',t.exitReason||'',t.note,t.closeNote||'',t.autoObservedAt||'',t.autoQuoteAge??''])];const csv='\ufeff'+rows.map(row=>row.map(csvSafe).join(',')).join('\r\n'),blob=new Blob([csv],{type:'text/csv;charset=utf-8'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='kucoin-paperlab-journal-'+new Date().toISOString().slice(0,10)+'.csv';document.body.append(a);a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);a.remove();toast('Journal CSV telah dieksport.')};
+$('downloadCSV').onclick=()=>{if(!state.trades.length){toast('Tiada trade untuk dieksport.','warn');return}const headers=['id','pair','status','opened_at','closed_at','entry_price','capital_usdt','quantity','target_price','stop_price','mark_price','exit_price','fee_buy_pct','fee_sell_pct','realized_pnl_usdt','exit_reason','note','close_note','price_snapshot_at','auto_quote_age_seconds','edit_count','edited_at'];const rows=[headers,...state.trades.map(t=>[t.id,t.symbol,t.status,t.openedAt,t.closedAt||'',t.entry,t.capital,t.qty,t.tp,t.sl,t.markPrice,t.exitPrice||'',t.buyFee*100,t.sellFee*100,t.status==='CLOSED'?t.realized:'',t.exitReason||'',t.note,t.closeNote||'',t.autoObservedAt||'',t.autoQuoteAge??'',t.editHistory?.length||0,t.editedAt||''])];const csv='\ufeff'+rows.map(row=>row.map(csvSafe).join(',')).join('\r\n'),blob=new Blob([csv],{type:'text/csv;charset=utf-8'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='kucoin-paperlab-journal-'+new Date().toISOString().slice(0,10)+'.csv';document.body.append(a);a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);a.remove();toast('Journal CSV telah dieksport.')};
 $('openSettings').onclick=()=>{$('initialWallet').value=String(state.initialBalance);$('settingsModal').showModal()};$('resetWallet').onclick=()=>{const v=n($('initialWallet').value);if(!(v>0)){toast('Modal awal tidak sah.','warn');return}if(!confirm('Reset wallet ke '+usd(v)+' USDT dan PADAM semua paper trade? Ini tidak boleh dibatalkan.'))return;stopMonitor('Monitor dihentikan kerana wallet telah direset.');state=emptyState(v);save();renderAll();$('settingsModal').close();toast('Wallet dan journal telah direset.')};
 $('openImport').onclick=()=>{$('importModal').showModal();$('signalText').focus()};document.querySelectorAll('[data-close]').forEach(b=>b.onclick=()=>$(b.dataset.close).close());
 function importValues(o){if(o.symbol)$('symbol').value=baseSymbol(o.symbol);if(o.entry>0)$('entry').value=o.entry;if(o.sl>0){stopMode='price';$('stopPrice').value=o.sl;updateStopFromPrice()}else if(stopMode==='pct')updateStopFromPct();if(o.tp>0&&n($('entry').value)>0){const en=n($('entry').value),bu=fRate($('buyFee').value),se=fRate($('sellFee').value),cap=n($('capital').value);const net=cap/en*o.tp*(1-se)-cap*(1+bu);$('targetValue').value=targetMode==='pct'?String(Number((100*net/cap).toFixed(6))):String(Number(net.toFixed(6)));if(net<0){$('targetValue').value='0';toast('TP import di bawah break-even; semak semula.','warn')}}if(o.score){$('tradeNote').value='Signal score: '+o.score+(o.note?' · '+o.note:'')}else if(o.note){$('tradeNote').value=o.note}lastLive=null;setPresets();calcRender()}
