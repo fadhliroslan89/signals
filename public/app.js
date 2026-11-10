@@ -681,4 +681,4 @@ function renderChart(points){
   byId('chartInfo').textContent=`${recent.length} data harga (1m candle + snapshot) • ${timeText(recent[0].time)}–${timeText(recent.at(-1).time)}`;
 }
 function closeDetail(){state.modalSymbol=null;byId('detailBackdrop').classList.add('hidden');document.body.style.overflow='';}
-initializeControls();fetchData();setInterval(()=>fetchData(false),20_000);
+initializeControls();window.__RADAR_INIT_OK=true;window.dispatchEvent(new Event('radar:ready'));fetchData();setInterval(()=>fetchData(false),20_000);

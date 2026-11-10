@@ -6,6 +6,7 @@
 const http = require('node:http');
 const fs = require('node:fs');
 const path = require('node:path');
+const zlib = require('node:zlib');
 const { URL } = require('node:url');
 const { DEFAULTS, rowFromTicker, number } = require('./lib/scanner');
 const { evaluate: evaluateQuality } = require('./public/entry-quality');
@@ -20,7 +21,7 @@ const MOCK = process.env.MOCK_KUCOIN === '1';
 const BASE = 'https://api.kucoin.com';
 const POLL_MS = 20_000;
 const HISTORY_MINUTES = 48;
-const BOOTSTRAP_SPACING_MS = 360; // ~2.8 candle requests/sec; do not hammer the public API.
+const BOOTSTRAP_SPACING_MS = 650; // ~2.8 candle requests/sec; do not hammer the public API.
 const publicDir = path.join(__dirname, 'public');
 const HUNTER_LIMIT = 30;
 const HUNTER_REFRESH_MS = 75_000;
@@ -49,6 +50,10 @@ const state = {
   error: null,
   syncing: false,
   startedAt: Date.now(),
+  lastPollStarted: 0,
+  lastPollFinished: 0,
+  pollFailures: 0,
+  lastPollDurationMs: 0,
   alertState: new Map(),
   alertLog: [],
 };
@@ -275,6 +280,7 @@ async function processTelegram() {
 async function poll() {
   if (state.syncing) return;
   state.syncing = true;
+  state.lastPollStarted = Date.now();
   try {
     if (state.allowed.size === 0 || Date.now() - state.symbolsUpdated > 60*60_000) await symbolsRefresh();
     const now = Date.now();
@@ -287,6 +293,7 @@ async function poll() {
     }
     state.lastUpdate = now;
     state.error = null;
+    state.pollFailures = 0;
     computeRows();
     if (state.bootstrap.total === 0 && state.allowed.size) {
       // Do not await: ticker polling remains responsive while candles load.
@@ -301,12 +308,49 @@ async function poll() {
     }
   } catch (err) {
     state.error = err.message;
+    state.pollFailures += 1;
     console.error('KuCoin fetch:', err.message);
-  } finally { state.syncing = false; }
+  } finally {
+    state.lastPollFinished = Date.now();
+    state.lastPollDurationMs = state.lastPollFinished - state.lastPollStarted;
+    state.syncing = false;
+  }
 }
 function json(res, obj, status = 200) {
   res.writeHead(status, { 'content-type':'application/json; charset=utf-8', 'cache-control':'no-store', 'x-content-type-options':'nosniff'});
   res.end(JSON.stringify(obj));
+}
+// Compress the large market snapshot off the Node.js event loop on mobile connections.
+// This improves transfer size but keeps all market data and journal semantics unchanged.
+function sendStatus(req, res, data) {
+  const body = JSON.stringify(data);
+  const headers = {'content-type':'application/json; charset=utf-8', 'cache-control':'no-store', 'x-content-type-options':'nosniff', 'vary':'Accept-Encoding'};
+  if (body.length < 4000 || !/\bgzip\b/.test(String(req.headers['accept-encoding'] || ''))) {
+    res.writeHead(200, headers); res.end(body); return;
+  }
+  zlib.gzip(body, {level:3}, (err, compressed) => {
+    if(res.destroyed || res.writableEnded) return;
+    if(err) {res.writeHead(200, headers); res.end(body); return;}
+    res.writeHead(200, {...headers, 'content-encoding':'gzip'});
+    res.end(compressed);
+  });
+}
+function diagnostics() {
+  const now=Date.now(), memory=process.memoryUsage();
+  return {
+    processAlive:true, marketFresh:state.lastUpdate>0 && now-state.lastUpdate<90_000,
+    strategyVersion:'1.9.6-stability', now,
+    uptimeSeconds:Math.round(process.uptime()),
+    lastMarketUpdate:state.lastUpdate, marketAgeSeconds:state.lastUpdate?Math.round((now-state.lastUpdate)/1000):null,
+    lastPollStarted:state.lastPollStarted, lastPollFinished:state.lastPollFinished,
+    pollInProgress:state.syncing, lastPollDurationMs:state.lastPollDurationMs,
+    consecutivePollFailures:state.pollFailures,
+    activePairs:state.allowed.size, tickerCount:state.tickers.size,
+    bootstrap:{done:state.bootstrap.done,total:state.bootstrap.total,active:state.bootstrap.active,failures:state.bootstrap.failures},
+    hunter:{monitored:state.hunterWatched.size, failures:state.hunterFailures},
+    memoryMB:{rss:Math.round(memory.rss/1048576), heapUsed:Math.round(memory.heapUsed/1048576)},
+    marketError:state.error, demo:MOCK
+  };
 }
 const types = {'.html':'text/html; charset=utf-8','.css':'text/css; charset=utf-8','.js':'text/javascript; charset=utf-8','.svg':'image/svg+xml','.png':'image/png','.webmanifest':'application/manifest+json'};
 function serveFile(res, pathname) {
@@ -331,7 +375,8 @@ function serveFile(res, pathname) {
       "base-uri 'self'",
       "frame-ancestors 'none'"
     ].join('; ');
-    res.writeHead(200, {'content-type':types[path.extname(resolved)] || 'application/octet-stream','cache-control':'public, max-age=300','x-content-type-options':'nosniff','referrer-policy':'no-referrer','content-security-policy':csp });
+    const cacheControl = path.extname(resolved)==='.html' || name === 'sw.js' || name === 'startup.js' ? 'no-cache, must-revalidate' : 'public, max-age=300';
+    res.writeHead(200, {'content-type':types[path.extname(resolved)] || 'application/octet-stream','cache-control':cacheControl,'x-content-type-options':'nosniff','referrer-policy':'no-referrer','content-security-policy':csp });
     res.end(contents);
   });
 }
@@ -418,8 +463,8 @@ async function serveChart(res,url) {
 const server = http.createServer((req, res) => {
   if (req.method !== 'GET' && req.method !== 'HEAD') return json(res,{error:'Method not allowed'},405);
   const url = new URL(req.url || '/', 'http://localhost');
-  if (url.pathname === '/api/status') return json(res,{
-    strategyVersion:'1.9.5', updatedAt:state.lastUpdate, now:Date.now(), pairs:state.allowed.size, fetched:state.rows.length,
+  if (url.pathname === '/api/status') return sendStatus(req,res,{
+    strategyVersion:'1.9.6', updatedAt:state.lastUpdate, now:Date.now(), pairs:state.allowed.size, fetched:state.rows.length,
     bootstrap:state.bootstrap, error:state.error, mock:MOCK, telegramEnabled, telegram: { configured: telegramEnabled, ...telegramEngine.status() }, defaults:cfg,
     hunter:{monitored:state.hunterWatched.size,ready:state.rows.filter(r => r.breakout?.coverage === 'READY').length,limit:HUNTER_LIMIT,lastRefreshed:state.hunterLastRefresh,failures:state.hunterFailures},
     alerts:state.alertLog.slice(0,12), rows:state.rows,
@@ -455,7 +500,15 @@ const server = http.createServer((req, res) => {
     const records = [...(state.histories.get(symbol) || [])].sort((a,b)=>a[0]-b[0]).map(([time,price])=>({time,price}));
     return json(res,{symbol,points:records});
   }
-  if (url.pathname === '/api/health') return json(res, {ok:!!state.lastUpdate && Date.now()-state.lastUpdate<90_000, lastUpdate:state.lastUpdate, error:state.error});
+  // Health is a light-weight HTTP probe independent of KuCoin history bootstrap.
+  // Status HTTP 200 means Node responds; ok/marketFresh indicate market readiness.
+  if (url.pathname === '/api/health') return json(res, {
+    ok:!!state.lastUpdate && Date.now()-state.lastUpdate<90_000,
+    processAlive:true, marketFresh:!!state.lastUpdate && Date.now()-state.lastUpdate<90_000,
+    lastUpdate:state.lastUpdate, error:state.error, uptimeSeconds:Math.round(process.uptime()),
+    pollInProgress:state.syncing, bootstrapDone:state.bootstrap.done, bootstrapTotal:state.bootstrap.total
+  });
+  if (url.pathname === '/api/diagnostics') return json(res, diagnostics());
   // Resolve the folder URL to PaperLab's HTML entry point.
   if (url.pathname === '/paperlab' || url.pathname === '/paperlab/') {
     return serveFile(res, '/paperlab/index.html');
@@ -463,9 +516,15 @@ const server = http.createServer((req, res) => {
   return serveFile(res, url.pathname);
 });
 server.listen(PORT, HOST, () => {
-  console.log(`KuCoin Radar: http://localhost:${PORT}${MOCK?' [DEMO DATA]':''}`);
+  console.log(`KuCoin Radar v1.9.6 stability: http://localhost:${PORT}${MOCK?' [DEMO DATA]':''}`);
   poll();
   setInterval(poll, POLL_MS).unref();
   setInterval(()=>refreshHunter().catch(e=>console.error('Hunter refresh:',e.message)),HUNTER_REFRESH_MS).unref();
+  // Render Free may spin down; heartbeat distinguishes a sleeping instance from a live
+  // instance whose KuCoin API is failing. No private keys/tokens are logged.
+  setInterval(()=>{
+    const d=diagnostics();
+    console.log(`[heartbeat] uptime=${d.uptimeSeconds}s marketFresh=${d.marketFresh} pairs=${d.activePairs} bootstrap=${d.bootstrap.done}/${d.bootstrap.total} rss=${d.memoryMB.rss}MB pollFailures=${d.consecutivePollFailures} ${d.marketError ? 'marketError='+String(d.marketError).slice(0,80) : ''}`);
+  },60_000).unref();
 });
 module.exports = { server, state, poll, computeRows };

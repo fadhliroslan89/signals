@@ -1,0 +1,24 @@
+KuCoin Radar v1.9.6 — Stability / Diagnostics
+
+TUJUAN
+- Memudahkan website dibuka semula selepas Render Free tidur, melalui shell UI cache (bukan harga).
+- Mengesan ralat loading melalui mesej yang jelas, bukan skrin logo sahaja.
+- Endpoint baharu /api/diagnostics (tiada token/rahsia): status process, memori, heartbeat, polling, bootstrap.
+- /api/health kini bezakan processAlive dengan marketFresh.
+- Respons /api/status digzip untuk browser yang menyokong gzip.
+- Had permintaan sejarah startup diberi jarak sedikit lebih besar. Scanner terus memuatkan semua pair secara berperingkat.
+
+TIDAK DIUBAH
+- API KuCoin tanpa akses akaun/auto-order; penapis signal.
+- Nama kunci localStorage Trading Journal dan fungsi eksport/import.
+- Token Telegram hanya di Render Environment; mod alert sedia ada.
+
+CARA UPDATE
+1. Backup Trading Journal JSON dari browser yang masih boleh membukanya. Jangan Clear Data/uninstall PWA.
+2. Upload semua fail update ZIP ke root GitHub 'signals', mengekalkan folder. Commit.
+3. Render Auto-Deploy, pastikan Live. Akses /api/health atau /api/diagnostics untuk diagnosis.
+4. Pertama kali buka versi baru perlu online agar service worker boleh dipasang. Kunjungan seterusnya boleh memaparkan UI cache jika server sementara tidak memberi respons; harga/BUY mesti berstatus OFFLINE sehingga data baru diterima.
+
+PENTING
+- Render Free masih tidur selepas tempoh tidak aktif. Pembetulan ini tidak menjamin Telegram sentiasa hidup atau website 24/7. Untuk operasi berterusan, server always-on diperlukan.
+- Punca putus sambungan pada 8 Nov belum boleh dipastikan tanpa log/HTTP; ini ialah hardening bukan pembuktian root-cause.

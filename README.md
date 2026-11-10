@@ -1,3 +1,7 @@
+## v1.9.6 — Stability patch for Render Free and Android PWA
+
+The existing scanner, journal and Telegram behavior are preserved. This version adds offline **UI shell only** (no cached market prices or signals), browser boot warning, compressed status response, minute heartbeat logs and `/api/diagnostics` for debugging intermittent Render Free availability. No deployment can prevent Render Free from sleeping after inactivity; 24/7 Telegram needs always-on hosting. See `KEMAS-KINI-v1.9.6-STABILITY.txt`.
+
 ## v1.9.5 — Notifikasi Telegram untuk BUY disahkan & coin baru skor 70+
 
 Buka `SETUP-TELEGRAM-v1.9.5.txt` untuk panduan BotFather, Chat ID dan Render Environment.
