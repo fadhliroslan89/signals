@@ -1,0 +1,52 @@
+KUCOIN RADAR v2.0 — FULL CHART WORKSPACE
+======================================
+
+APA YANG DITAMBAH
+- Tab /chart/ dengan candlestick KuCoin OHLCV 1m,5m,15m,30m,1h,4h.
+- Volume + EMA9/21, pan (seret), zoom (skrol atau butang), crosshair.
+- Draw: horizontal line, trendline, rectangle/zone, nota.
+- Pilih/edit, pindah, padam pilihan, padam semua (ada confirmation).
+- Auto-save ke localStorage setiap pair+timeframe berdasarkan harga dan UTC candle time.
+- Backup & restore JSON dengan validasi dan salinan recovery.
+- Link chart daripada tab Scanner, kad coin & modal, serta PaperLab.
+- Cloud sync PILIHAN melalui akaun Supabase PaperLab sedia ada.
+- Tidak ubah BUY/SELL, Telegram, PaperLab journal atau mencipta order KuCoin.
+
+CARA KEMAS KINI GITHUB
+1. Backup/export Trading Journal & PaperLab dahulu.
+2. Ekstrak ZIP 'GitHub_Update'; upload SEMUA kandungan folder ke root repo signals.
+   Pastikan public/chart/index.html berada tepat pada path ini.
+3. Commit changes ke branch main.
+4. Tunggu Render Auto Deploy berstatus LIVE.
+5. Buka https://signals-ax4g.onrender.com/chart/
+   Pada desktop lakukan Cmd+Shift+R; pada telefon cuba Chrome biasa.
+6. Test lukis garis SOL-USDT 5m. Refresh: garis mesti kembali.
+7. Test tukar timeframe 1m (kosong), kembali 5m (garis kembali).
+
+CLOUD SYNC ANTARA PHONE & MACBOOK (ONE-TIME SETUP)
+1. Di Supabase project yang sama dengan PaperLab, buka SQL Editor.
+2. Copy PENUH kandungan setup/SUPABASE_CHART_WORKSPACES.sql dan Run.
+   Ia cipta public.chart_workspaces dan RLS berasaskan auth.uid().
+   Jangan sekali-kali paparkan service_role key kepada orang lain.
+3. Login akaun PaperLab yang sama di setiap peranti (PaperLab > Cloud Journal).
+4. Buka /chart/ dan tekan 'Sambung Cloud'.
+5. Jika ada lukisan lokal dan cloud berbeza, PILIH secara manual:
+   'Muat daripada Cloud' untuk download, 'Simpan ke Cloud' untuk upload.
+6. Bila status SYNC AKTIF, perubahan akan disimpan ke cloud secara automatik.
+7. Gunakan Backup JSON secara berkala; browser cache/storage boleh terpadam.
+
+PENGGUNAAN CHART
+- Tool 'Gerak' untuk pan/scroll, '+ Zoom' dan '- Zoom' untuk mobile.
+- 'Horizontal': satu klik/tap pada harga.
+- 'Trendline' atau 'Zone': klik/tap dua titik.
+- 'Nota': klik/tap, isi teks ringkas.
+- 'Pilih/Edit': klik garis/zone dan seret untuk ubah kedudukan.
+- 'Padam pilihan' untuk buang satu lukisan; 'Padam semua' untuk satu pair/timeframe.
+- Kekalkan website online untuk data terbaru; jangan guna candle/harga lama untuk entry.
+
+NOTA
+- Sync cloud tidak akan berfungsi sebelum jadual SQL disediakan dan login PaperLab.
+- Data KuCoin menggunakan /api/chart yang sudah ada, bukan API trading.
+- Candle yang sedang terbentuk belum tutup; chart refresh 20 saat, bukan tick-by-tick.
+- Render Free masih boleh sleep. Pembaikan uptime 24 jam bukan skop update ini.
+- Kod lulus ujian automatik; paparan browser produksi perlu disemak selepas deploy.

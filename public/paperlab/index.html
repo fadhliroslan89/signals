@@ -60,7 +60,7 @@
 <div class="shell">
   <header class="top">
     <div class="brand"><div class="brand-mark">◈</div><div>KuCoin <span style="color:var(--green)">PaperLab</span><small>SPOT TRADE SIMULATOR</small></div></div>
-    <div class="topright"><a class="ghost tiny" id="returnScanner" href="/" style="display:none">← Scanner</a><div class="pill"><span class="dot"></span> MANUAL + PUBLIC MARKET DATA</div><button class="ghost tiny" id="openSettings">⚙ Tetapan</button></div>
+    <div class="topright"><a class="ghost tiny" id="openChartWorkspace" href="/chart/">📈 Full Chart</a><a class="ghost tiny" id="returnScanner" href="/" style="display:none">← Scanner</a><div class="pill"><span class="dot"></span> MANUAL + PUBLIC MARKET DATA</div><button class="ghost tiny" id="openSettings">⚙ Tetapan</button></div>
   </header>
   <section class="hero">
     <div><div class="eyebrow">PAPER TRADE / PRICE PLANNER</div><h1>Set target lebih jelas.<br><span class="green">Trade tanpa risiko sebenar.</span></h1><p>Kira TP bersih selepas fee, semak SL dan simpan paper trade dalam satu halaman.</p></div>
@@ -494,6 +494,7 @@ window.addEventListener('storage',e=>{
 });
 
 renderAll();calcRender();readURL();
+const chartLink=document.getElementById('openChartWorkspace');const chartSymbolInput=document.getElementById('symbol');function updateChartLink(){if(!chartLink)return;const base=String(chartSymbolInput?.value||'').trim().toUpperCase().replace(/[^A-Z0-9]/g,'');chartLink.href='/chart/'+(base?'?symbol='+encodeURIComponent(base+'-USDT'):'')}chartSymbolInput?.addEventListener('input',updateChartLink);updateChartLink();
 if('serviceWorker' in navigator && /^https?:$/.test(location.protocol))navigator.serviceWorker.register('./sw.js').catch(()=>{});
 })();
 </script>

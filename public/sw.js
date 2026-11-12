@@ -1,11 +1,11 @@
 /* KuCoin Radar v1.9.6: offline shell ONLY, never cache price/status/Telegram APIs. */
 'use strict';
-const CACHE = 'kucoin-radar-shell-v1.9.6';
+const CACHE = 'kucoin-radar-shell-v2.0';
 const SHELL = [
   '/', '/index.html', '/styles.css', '/app.js', '/startup.js', '/icon.svg',
   '/manifest.webmanifest', '/radar-live-chart.css', '/radar-live-chart.js',
   '/paperlab-link.js', '/top10.js', '/acceleration.js', '/planner.js',
-  '/journal-core.js', '/journal-ui.js', '/entry-quality.js', '/quality70.js',
+  '/journal-core.js', '/journal-ui.js', '/chart/', '/chart/index.html', '/chart-workspace.css', '/chart-workspace.js', '/chart-cloud.js', '/chart-link.js', '/entry-quality.js', '/quality70.js',
   '/hitrun.js', '/top70.js'
 ];
 self.addEventListener('install', event => {

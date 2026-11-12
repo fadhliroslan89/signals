@@ -26,11 +26,11 @@ for(const mock of [true,false]){
     fetch(base+'/'),fetch(base+'/sw.js'),fetch(base+'/api/health'),fetch(base+'/api/diagnostics'),fetch(base+'/api/status',{headers:{'accept-encoding':'gzip'}})
   ]);
   for(const r of [html,sw,health,diag,status])assert.equal(r.status,200);
-  assert.match(await html.text(),/KuCoin Scalping Radar v1\.9\.6/);
+  assert.match(await html.text(),/KuCoin Scalping Radar v2\.0/);
   assert.match(await sw.text(),/never cache price\/status/i);
   const h=await health.json(); assert.equal(h.processAlive,true);
   const d=await diag.json(); assert.equal(d.processAlive,true);assert.ok(d.memoryMB.rss>0);
-  const s=await status.json();assert.equal(s.strategyVersion,'1.9.6');
+  const s=await status.json();assert.equal(s.strategyVersion,'2.0.0');
   assert.equal(s.mock,mock);
   if(!mock){
     await new Promise(r=>setTimeout(r,150));

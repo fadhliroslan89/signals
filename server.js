@@ -339,7 +339,7 @@ function diagnostics() {
   const now=Date.now(), memory=process.memoryUsage();
   return {
     processAlive:true, marketFresh:state.lastUpdate>0 && now-state.lastUpdate<90_000,
-    strategyVersion:'1.9.6-stability', now,
+    strategyVersion:'2.0.0-chart', now,
     uptimeSeconds:Math.round(process.uptime()),
     lastMarketUpdate:state.lastUpdate, marketAgeSeconds:state.lastUpdate?Math.round((now-state.lastUpdate)/1000):null,
     lastPollStarted:state.lastPollStarted, lastPollFinished:state.lastPollFinished,
@@ -364,13 +364,14 @@ function serveFile(res, pathname) {
     // Allow these only for the PaperLab HTML; scanner scripts stay restricted to self.
     // The scanner injects a local <style> for the PaperLab navigation button.
     const isPaperLabPage = pathname === '/paperlab/index.html';
+    const isChartPage = pathname === '/chart/index.html';
     const isScannerPage = pathname === '/' || pathname === '/index.html';
     const csp = [
       "default-src 'self'",
       `script-src 'self'${isPaperLabPage ? " 'unsafe-inline'" : ''}`,
       `style-src 'self'${(isPaperLabPage || isScannerPage) ? " 'unsafe-inline'" : ''}`,
       "img-src 'self' data:",
-      `connect-src 'self'${isPaperLabPage ? ' https://api.kucoin.com https://ldwfgsupmyykicdmfgjp.supabase.co' : ''}`,
+      `connect-src 'self'${isPaperLabPage ? ' https://api.kucoin.com https://ldwfgsupmyykicdmfgjp.supabase.co' : ''}${isChartPage ? ' https://ldwfgsupmyykicdmfgjp.supabase.co' : ''}`,
       "object-src 'none'",
       "base-uri 'self'",
       "frame-ancestors 'none'"
@@ -385,14 +386,14 @@ const chartIntervals = Object.freeze({ '1m':['1min',60], '5m':['5min',300], '15m
 const chartCache = new Map();
 const chartInflight = new Map();
 const CHART_CACHE_MS = 15_000;
-function normalizeChartCandles(raw) {
+function normalizeChartCandles(raw, limit = 115) {
   if (!Array.isArray(raw)) return [];
   return raw.map(x => {
     if (!Array.isArray(x) || x.length < 6) return null;
     const [t,o,c,h,l,v] = x.map(Number);
     if (![t,o,c,h,l,v].every(Number.isFinite) || t <= 0 || o <= 0 || c <= 0 || l <= 0 || h <= 0 || v < 0 || h < Math.max(o,c,l) || l > Math.min(o,c,h)) return null;
     return {time:t*1000,open:o,high:h,low:l,close:c,volume:v};
-  }).filter(Boolean).sort((a,b)=>a.time-b.time).slice(-115);
+  }).filter(Boolean).sort((a,b)=>a.time-b.time).slice(-limit);
 }
 function fakeChartCandles(symbol,seconds) {
   const n=105, at=Math.floor(Date.now()/(1000*seconds))*(1000*seconds);
@@ -408,6 +409,7 @@ function fakeChartCandles(symbol,seconds) {
   return out;
 }
 async function serveChart(res,url) {
+  const limit = url.searchParams.get('limit') === '320' ? 320 : 115;
   const symbol=String(url.searchParams.get('symbol')||'').trim().toUpperCase();
   const timeframe=String(url.searchParams.get('tf')||'30m').trim();
   if(!/^[A-Z0-9]{1,20}-USDT$/.test(symbol) || !Object.prototype.hasOwnProperty.call(chartIntervals,timeframe))
@@ -418,7 +420,7 @@ async function serveChart(res,url) {
   const ageMs=Date.now()-state.lastUpdate;
   if(!(lastPrice>0) || !state.lastUpdate || ageMs>90_000)
     return json(res,{error:'Data pasaran belum sedia atau terlalu lama.'},503);
-  const cacheKey=symbol+':'+timeframe, now=Date.now();
+  const cacheKey=symbol+':'+timeframe+':'+limit, now=Date.now();
   let hit=chartCache.get(cacheKey);
   if(!hit || now-hit.fetchedAt>=CHART_CACHE_MS) {
     try {
@@ -427,12 +429,12 @@ async function serveChart(res,url) {
         task=(async()=>{
           const [type,seconds]=chartIntervals[timeframe];
           let candles;
-          if(MOCK) candles=fakeChartCandles(symbol,seconds);
+          if(MOCK) candles=fakeChartCandles(symbol,seconds).slice(-limit);
           else {
             const endAt=Math.floor(Date.now()/1000);
-            const startAt=endAt-seconds*125;
+            const startAt=endAt-seconds*(limit+10);
             const raw=await getKucoin(`/api/v1/market/candles?type=${type}&symbol=${encodeURIComponent(symbol)}&startAt=${startAt}&endAt=${endAt}`);
-            candles=normalizeChartCandles(raw);
+            candles=normalizeChartCandles(raw,limit);
           }
           if(!candles.length) throw new Error('Tiada candle untuk pair atau timeframe ini.');
           const fresh={candles,fetchedAt:Date.now()};
@@ -464,7 +466,7 @@ const server = http.createServer((req, res) => {
   if (req.method !== 'GET' && req.method !== 'HEAD') return json(res,{error:'Method not allowed'},405);
   const url = new URL(req.url || '/', 'http://localhost');
   if (url.pathname === '/api/status') return sendStatus(req,res,{
-    strategyVersion:'1.9.6', updatedAt:state.lastUpdate, now:Date.now(), pairs:state.allowed.size, fetched:state.rows.length,
+    strategyVersion:'2.0.0', updatedAt:state.lastUpdate, now:Date.now(), pairs:state.allowed.size, fetched:state.rows.length,
     bootstrap:state.bootstrap, error:state.error, mock:MOCK, telegramEnabled, telegram: { configured: telegramEnabled, ...telegramEngine.status() }, defaults:cfg,
     hunter:{monitored:state.hunterWatched.size,ready:state.rows.filter(r => r.breakout?.coverage === 'READY').length,limit:HUNTER_LIMIT,lastRefreshed:state.hunterLastRefresh,failures:state.hunterFailures},
     alerts:state.alertLog.slice(0,12), rows:state.rows,
@@ -510,13 +512,14 @@ const server = http.createServer((req, res) => {
   });
   if (url.pathname === '/api/diagnostics') return json(res, diagnostics());
   // Resolve the folder URL to PaperLab's HTML entry point.
+  if (url.pathname === '/chart' || url.pathname === '/chart/') return serveFile(res, '/chart/index.html');
   if (url.pathname === '/paperlab' || url.pathname === '/paperlab/') {
     return serveFile(res, '/paperlab/index.html');
   }
   return serveFile(res, url.pathname);
 });
 server.listen(PORT, HOST, () => {
-  console.log(`KuCoin Radar v1.9.6 stability: http://localhost:${PORT}${MOCK?' [DEMO DATA]':''}`);
+  console.log(`KuCoin Radar v2.0 chart workspace: http://localhost:${PORT}${MOCK?' [DEMO DATA]':''}`);
   poll();
   setInterval(poll, POLL_MS).unref();
   setInterval(()=>refreshHunter().catch(e=>console.error('Hunter refresh:',e.message)),HUNTER_REFRESH_MS).unref();
