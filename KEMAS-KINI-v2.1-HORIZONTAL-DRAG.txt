@@ -1,0 +1,36 @@
+KuCoin Radar v2.1 — Pembetulan Horizontal Line Drag
+====================================================
+
+Fokus: membolehkan horizontal line sedia ada digerakkan atas/bawah tanpa dipadam.
+
+CARA GUNA
+1. Buka /chart/, pilih coin dan timeframe seperti biasa.
+2. Tekan "━ Horizontal" lalu klik chart untuk hasilkan satu garis.
+3. Masih dalam mod Horizontal, klik/touch tepat pada garis kuning dan SERET naik/turun.
+   Garis sedia ada akan bergerak, tiada garis kedua dicipta.
+4. Sebagai alternatif, tekan "⌖ Pilih/Edit", kemudian seret garis.
+5. Untuk harga tepat, double-click pada garis (desktop) dan masukkan harga USDT.
+6. Harga baharu disimpan automatik selepas drag dilepaskan. Refresh untuk semak.
+
+PAKEJ UPDATE GITHUB
+- public/chart-workspace.js (logic drag, select, autosave)
+- public/chart-workspace.css (panduan ringkas dan kemudahan mobile)
+- public/chart/index.html (panduan pada layar dan version bust)
+- public/sw.js (cache shell v2.1 supaya aplikasi PWA tidak guna skrip lama)
+- package.json (version 2.1.0)
+- test/chart-runtime.test.js (ujian regression)
+- test/chart-workspace.test.js (judul ujian dikemas kini)
+
+TIDAK DIUBAH
+- API KuCoin, scanner, Telegram dan backend server.js
+- PaperLab, journal, data Supabase/cloud sync
+- localStorage key "kucoin-chart-v2:<PAIR>:<TF>" supaya lukisan lama kekal
+
+LANGKAH UPDATE
+1. Sekiranya ada lukisan penting, buka Full Chart lalu klik "Backup JSON" dahulu.
+2. Extract ZIP "GitHub_Update" dan upload isinya ke root repository GitHub signals.
+3. Commit changes, kemudian semak Render Auto-Deploy = Live.
+4. Buka /chart/ melalui Chrome dan refresh (Cmd+Shift+R di Mac).
+5. Uji seret horizontal line, kemudian reload: harga dan lukisan harus kekal.
+
+Ujian kod automatik lulus. Belum diuji pada deployment Render sebenar.

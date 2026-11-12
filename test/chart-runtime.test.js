@@ -38,3 +38,50 @@ test('Canvas chart runs in isolated UI, draws hline + trend + zone, persists tim
  again.elem('timeframe').value='5m';again.elem('timeframe').listeners.change();await sleep(15);
  assert.equal(again.api.getDrawings().length,3);
 });
+
+test('v2.1 horizontal lines drag vertically while Horizontal tool stays active; do not create duplicates; preserve timestamps and auto-save',async()=>{
+ const env=makeEnv();await sleep(20);
+ const {elem,toolEls,api,store}=env;
+ const stage=elem('chartStage');
+ const event=(k,x,y,id=1)=>stage.listeners[k]({type:k,button:0,pointerId:id,clientX:x,clientY:y});
+ toolEls.find(x=>x.dataset.tool==='hline').listeners.click();
+ event('pointerdown',280,270);event('pointerup',280,270);
+ let d=api.getDrawings();assert.equal(d.length,1);assert.equal(d[0].type,'hline');
+ const before=d[0].anchors[0];
+ // Existing horizontal line can be grabbed in Horizontal mode and dragged up or down.
+ event('pointerdown',460,270);event('pointermove',460,320);event('pointerup',460,320);
+ d=api.getDrawings();assert.equal(d.length,1,'editing must not create a second line');
+ assert.equal(d[0].anchors[0].t,before.t,'horizontal line timestamp must stay fixed');
+ assert.notEqual(d[0].anchors[0].price,before.price,'vertical drag changes price');
+ const after=d[0].anchors[0].price;
+ assert.equal(JSON.parse(store.get('kucoin-chart-v2:SOL-USDT:5m'))[0].anchors[0].price,after,'price is auto-saved');
+ const reopened=makeEnv(store);await sleep(20);
+ assert.equal(reopened.api.getDrawings()[0].anchors[0].price,after,'price persists after reloading');
+ // Unrelated timeframe keeps its own drawings.
+ reopened.elem('timeframe').value='15m';reopened.elem('timeframe').listeners.change();await sleep(15);
+ assert.equal(reopened.api.getDrawings().length,0);
+});
+
+test('v2.1 Select/Edit drags horizontal line vertically while keeping candle time',async()=>{
+ const env=makeEnv();await sleep(20);const {elem,toolEls,api}=env,stage=elem('chartStage');
+ const event=(k,x,y)=>stage.listeners[k]({type:k,button:0,pointerId:1,clientX:x,clientY:y});
+ toolEls.find(x=>x.dataset.tool==='hline').listeners.click();event('pointerdown',250,260);event('pointerup',250,260);
+ const initial=api.getDrawings()[0].anchors[0];
+ toolEls.find(x=>x.dataset.tool==='select').listeners.click();
+ event('pointerdown',300,260);event('pointermove',300,240);event('pointerup',300,240);
+ const moved=api.getDrawings()[0].anchors[0];
+ assert.equal(moved.t,initial.t);assert.ok(moved.price>initial.price,'drag up raises line price');
+ assert.equal(api.getDrawings().length,1);
+});
+
+test('v2.1 double-click on an existing horizontal line sets exact price and persists it',async()=>{
+ const env=makeEnv();await sleep(20);
+ const {elem,toolEls,api,store}=env,stage=elem('chartStage');
+ const event=(k,x,y)=>stage.listeners[k]({type:k,button:0,pointerId:1,clientX:x,clientY:y});
+ toolEls.find(x=>x.dataset.tool==='hline').listeners.click();event('pointerdown',300,270);event('pointerup',300,270);
+ env.sandbox.window.prompt=()=> '154.2386';
+ stage.listeners.dblclick({button:0,clientX:300,clientY:270});
+ const result=api.getDrawings();
+ assert.equal(result.length,1);assert.equal(result[0].anchors[0].price,154.2386);
+ assert.equal(JSON.parse(store.get('kucoin-chart-v2:SOL-USDT:5m'))[0].anchors[0].price,154.2386);
+});

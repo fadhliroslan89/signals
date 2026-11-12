@@ -1,4 +1,4 @@
-/* KuCoin Radar v2.0 — native Canvas candlestick workspace, no external chart dependency.
+/* KuCoin Radar v2.1 — native Canvas candlestick workspace, no external chart dependency.
  * All annotations anchor to UTC candle time + market price, not screen pixels.
  * Chart is for analysis only; no order submission is possible here.
  */
@@ -84,6 +84,11 @@ function drawItem(d,p,isSelected=false,isDraft=false){
  if(d.type==='trend'&&p2){ctx.beginPath();ctx.moveTo(p1.x,p1.y);ctx.lineTo(p2.x,p2.y);ctx.stroke()}
  if(d.type==='zone'&&p2){const x=Math.min(p1.x,p2.x),y=Math.min(p1.y,p2.y),w=Math.abs(p2.x-p1.x),h=Math.abs(p2.y-p1.y);ctx.globalAlpha=.15;ctx.fillRect(x,y,w,h);ctx.globalAlpha=1;ctx.strokeRect(x,y,w,h)}
  if(d.type==='note'){const text=d.text||'Nota';ctx.font='bold 12px system-ui';roundedRect(p1.x-5,p1.y-23,Math.min(ctx.measureText(text).width+14,250),23,6);ctx.fillStyle='#163b45';ctx.fill();ctx.stroke();ctx.fillStyle='#ddf7f1';ctx.fillText(text.slice(0,36),p1.x+2,p1.y-7)}
+ if(isSelected&&d.type==='hline'){
+  // A conspicuous drag handle makes horizontal lines discoverable on touch screens.
+  ctx.setLineDash([]);ctx.fillStyle='#e9f9ff';ctx.strokeStyle=color;ctx.lineWidth=2;
+  ctx.beginPath();ctx.arc(Math.min(p.right-25,p.left+Math.max(46,(p.right-p.left)*.48)),p1.y,6,0,Math.PI*2);ctx.fill();ctx.stroke();
+ }
  if(isSelected&&d.type!=='hline'&&d.type!=='note'){ctx.setLineDash([]);for(const pt of [p1,p2]){if(!pt)continue;ctx.fillStyle='#e9f9ff';ctx.beginPath();ctx.arc(pt.x,pt.y,4,0,Math.PI*2);ctx.fill()}}
  ctx.restore();
 }
@@ -91,14 +96,40 @@ function drawCrosshair(p){if(!hover||tool!=='pan')return;const {x,y}=hover;if(x<
 function render(){clearAndSize();if(bars.length===0){ctx.font='15px system-ui';ctx.fillStyle=COLORS.muted;ctx.fillText('Menunggu data candlestick…',24,80);return}view=plot();paintBackground(view);paintCandles(view);paintEma(view);paintDrawings(view);drawCrosshair(view);$('candleCount').textContent=bars.length+' candle';}
 function hitTest(pt,p){for(let i=drawings.length-1;i>=0;i--){const d=drawings[i],{p1,p2}=geometry(d,p);if(d.type==='hline'&&Math.abs(pt.y-p1.y)<9)return i;if(d.type==='note'&&Math.abs(pt.x-p1.x)<90&&Math.abs(pt.y-p1.y)<29)return i;if(d.type==='trend'&&p2){const dx=p2.x-p1.x,dy=p2.y-p1.y,t=Math.max(0,Math.min(1,((pt.x-p1.x)*dx+(pt.y-p1.y)*dy)/(dx*dx+dy*dy||1))),hit={x:p1.x+t*dx,y:p1.y+t*dy};if(distance(pt,hit,p)<10)return i}if(d.type==='zone'&&p2){const minx=Math.min(p1.x,p2.x),maxx=Math.max(p1.x,p2.x),miny=Math.min(p1.y,p2.y),maxy=Math.max(p1.y,p2.y);if(pt.x>=minx-7&&pt.x<=maxx+7&&pt.y>=miny-7&&pt.y<=maxy+7)return i}}return -1}
 function xy(ev){const r=canvas.getBoundingClientRect();return {x:ev.clientX-r.left,y:ev.clientY-r.top}}
-function chooseTool(t){tool=t;draft=null;drag=null;document.querySelectorAll('[data-tool]').forEach(b=>{b.classList.toggle('active',b.dataset.tool===t);b.setAttribute('aria-pressed',String(b.dataset.tool===t))});stage.dataset.tool=t;notify(t==='pan'?'Gerak: drag untuk pan, scroll untuk zoom. Pilih lukisan untuk edit/buang.':t==='hline'?'Klik/tap harga untuk horizontal line.':t==='note'?'Klik/tap lokasi nota.':'Klik/tap dua titik pada chart untuk '+(t==='trend'?'trendline.':'zone.'));render()}
+function hitHorizontal(pt,p){
+ // Larger touch target than the visible stroke; prefer the nearest horizontal line.
+ let best=-1,closest=Infinity;const tolerance=evTouchTolerance();
+ for(let i=drawings.length-1;i>=0;i--){const d=drawings[i];if(d.type!=='hline')continue;
+  const y=p.y(d.anchors[0].price),dy=Math.abs(pt.y-y);
+  if(dy<=tolerance&&dy<closest){closest=dy;best=i}
+ }
+ return best;
+}
+function evTouchTolerance(){return 14}
+function beginShapeDrag(index,p,ev){
+ selected=index;
+ drag={mode:'shape',pointerId:ev.pointerId,x:p.x,y:p.y,index,changed:false,original:copyDrawings([drawings[index]])[0]};
+ if(drawings[index].type==='hline')notify('Garisan dipilih. Seret ke atas/bawah untuk ubah harga; auto-save selepas dilepas.','ok');
+ render();
+}
+function chooseTool(t){tool=t;draft=null;drag=null;document.querySelectorAll('[data-tool]').forEach(b=>{b.classList.toggle('active',b.dataset.tool===t);b.setAttribute('aria-pressed',String(b.dataset.tool===t))});stage.dataset.tool=t;notify(t==='pan'?'Gerak chart: drag untuk pan, scroll untuk zoom.':t==='select'?'Pilih/Edit: sentuh garis lalu seret atas/bawah. Double-click untuk masukkan harga tepat.':t==='hline'?'Klik ruang kosong untuk lukis garis. Seret garis sedia ada untuk ubah harga.':t==='note'?'Klik/tap lokasi nota.':'Klik/tap dua titik pada chart untuk '+(t==='trend'?'trendline.':'zone.'));render()}
 function noteInput(current=''){const v=window.prompt('Nota chart (maksimum 120 aksara):',current);return v===null?null:v.trim().slice(0,120)}
-function down(ev){if(!bars.length||!view||ev.button>0)return;const p=xy(ev);hover=p;stage.setPointerCapture(ev.pointerId);
- if(tool==='pan'){drag={mode:'pan',startX:p.x,initialEnd:endIndex};return}
- if(tool==='select'){selected=hitTest(p,view);drag=selected>=0?{mode:'shape',x:p.x,y:p.y,index:selected,original:copyDrawings([drawings[selected]])[0]}:null;render();return}
+function down(ev){if(!bars.length||!view||ev.button>0)return;const p=xy(ev);hover=p;
  if(p.x<view.left||p.x>view.right||p.y<view.top||p.y>view.priceBottom)return;
+ stage.setPointerCapture(ev.pointerId);
+ // In Horizontal mode, dragging any existing line edits it rather than adding a duplicate.
+ if(tool==='hline'){
+  const existing=hitHorizontal(p,view);
+  if(existing>=0){beginShapeDrag(existing,p,ev);return}
+ }
+ if(tool==='pan'){drag={mode:'pan',pointerId:ev.pointerId,startX:p.x,initialEnd:endIndex};return}
+ if(tool==='select'){const index=hitTest(p,view);if(index>=0)beginShapeDrag(index,p,ev);else{selected=-1;drag=null;render()}return}
  const anchor=pointerAnchor(p,view);
- if(tool==='hline'){if(drawings.length>=MAX_DRAWINGS)return notify('Had maksimum lukisan.','warn');drawings.push({type:'hline',anchors:[anchor]});commit();return}
+ if(tool==='hline'){
+  if(drawings.length>=MAX_DRAWINGS)return notify('Had maksimum lukisan.','warn');
+  drawings.push({type:'hline',anchors:[anchor]});selected=drawings.length-1;commit();
+  notify('Garisan dibuat. Seret garis ini untuk alih naik/turun tanpa melukis semula.','ok');return
+ }
  if(tool==='note'){const txt=noteInput();if(txt){drawings.push({type:'note',anchors:[anchor],text:txt});commit()}return}
  if(tool==='trend'||tool==='zone'){
   if(!draft){draft={type:tool,anchors:[anchor,anchor]};notify('Pilih titik kedua…');render()}
@@ -106,13 +137,34 @@ function down(ev){if(!bars.length||!view||ev.button>0)return;const p=xy(ev);hove
  }
 }
 function move(ev){if(!bars.length||!view)return;const p=xy(ev);hover=p;
+ if(drag&&drag.pointerId!==ev.pointerId)return;
  if(drag?.mode==='pan'){const moved=Math.round((drag.startX-p.x)/view.step);endIndex=Math.max(visibleCount-1,Math.min(bars.length-1,drag.initialEnd+moved))}
- if(drag?.mode==='shape'){const original=drag.original,idx=drag.index,dt=Math.round((p.x-drag.x)/view.step),priceDiff=view.py(p.y)-view.py(drag.y);
-  drawings[idx]={...original,anchors:original.anchors.map(a=>{const at=bars.findIndex(b=>b.time===a.t*1000);const next=at<0?0:Math.max(0,Math.min(bars.length-1,at+dt));return {t:Math.floor(bars[next].time/1000),price:Math.max(1e-12,a.price+priceDiff)}})};
+ if(drag?.mode==='shape'){
+  const original=drag.original,idx=drag.index;
+  const y=Math.max(view.top,Math.min(view.priceBottom,p.y));
+  const oldY=Math.max(view.top,Math.min(view.priceBottom,drag.y));
+  const priceDiff=view.py(y)-view.py(oldY);
+  if(original.type==='hline'){
+   // Horizontal lines change PRICE only. Preserve original candle timestamp exactly.
+   const target=Math.max(1e-12,original.anchors[0].price+priceDiff);
+   drawings[idx]={...original,anchors:[{...original.anchors[0],price:target}]};
+  }else{
+   const dt=Math.round((p.x-drag.x)/view.step);
+   drawings[idx]={...original,anchors:original.anchors.map(a=>{const at=bars.findIndex(b=>b.time===a.t*1000);const next=at<0?0:Math.max(0,Math.min(bars.length-1,at+dt));return {t:Math.floor(bars[next].time/1000),price:Math.max(1e-12,a.price+priceDiff)}})};
+  }
+  drag.changed=drag.changed||Math.abs(p.x-drag.x)>2||Math.abs(p.y-drag.y)>2;
  }
  if(draft&&view){draft.anchors[1]=pointerAnchor(p,view)}render()
 }
-function up(ev){if(drag?.mode==='shape')commit();drag=null;if(stage.hasPointerCapture(ev.pointerId))stage.releasePointerCapture(ev.pointerId)}
+function up(ev){
+ if(drag&&drag.pointerId!==ev.pointerId)return;
+ if(drag?.mode==='shape'){
+  if(ev.type==='pointercancel'){drawings[drag.index]=drag.original;render()}
+  else if(drag.changed){commit();notify('Harga/kedudukan lukisan dikemas kini dan disimpan.','ok')}
+ }
+ drag=null;
+ if(stage.hasPointerCapture(ev.pointerId))stage.releasePointerCapture(ev.pointerId)
+}
 function wheel(ev){if(!bars.length)return;ev.preventDefault();const count=visibleCount,ratio=ev.deltaY>0?1.14:.88;visibleCount=Math.min(Math.min(bars.length,320),Math.max(20,Math.round(count*ratio)));endIndex=Math.max(visibleCount-1,endIndex);render()}
 function removeSelected(){if(selected<0)return notify('Pilih garisan atau zone dahulu.','warn');drawings.splice(selected,1);selected=-1;commit()}
 function clearAll(){if(!drawings.length)return;if(confirm('Padam semua '+drawings.length+' lukisan bagi '+symbol+' '+tf+'? Tindakan ini tidak boleh diundur.')){drawings=[];selected=-1;commit()}}
@@ -140,7 +192,20 @@ function init(){const qs=new URLSearchParams(location.search),initial=normalizeS
   $('importDrawing').addEventListener('change',async e=>{try{await importJson(e.target.files?.[0])}catch(err){notify('Import gagal: '+err.message,'warn')}e.target.value='' });
   $('openPaperlab').addEventListener('click',()=>{location.href='/paperlab/?symbol='+encodeURIComponent(symbol)});
   stage.addEventListener('pointerdown',down);stage.addEventListener('pointermove',move);stage.addEventListener('pointerup',up);stage.addEventListener('pointercancel',up);stage.addEventListener('pointerleave',()=>{hover=null;render()});stage.addEventListener('wheel',wheel,{passive:false});
-  stage.addEventListener('dblclick',()=>{if(tool==='select'&&selected>=0&&drawings[selected].type==='note'){const text=noteInput(drawings[selected].text);if(text!==null){drawings[selected].text=text;commit()}}});
+  stage.addEventListener('dblclick',ev=>{
+   if(!view)return;const p=xy(ev);
+   const chosen=hitHorizontal(p,view);
+   if(chosen>=0&&(tool==='select'||tool==='hline')){
+    selected=chosen;
+    const original=drawings[chosen].anchors[0].price;
+    const response=window.prompt('Harga horizontal line (USDT):',String(original));
+    if(response===null)return;
+    const price=Number(response.trim());
+    if(!Number.isFinite(price)||price<=0){notify('Masukkan harga positif yang sah.','warn');return}
+    drawings[chosen].anchors[0].price=price;commit();notify('Harga garis dikemas kini dan disimpan.','ok');return;
+   }
+   if(tool==='select'&&selected>=0&&drawings[selected].type==='note'){const text=noteInput(drawings[selected].text);if(text!==null){drawings[selected].text=text;commit()}}
+  });
   document.addEventListener('keydown',e=>{if(e.target.matches('input,textarea,select'))return;if(e.key==='Escape'){draft=null;chooseTool('pan')}if((e.key==='Delete'||e.key==='Backspace')&&selected>=0){e.preventDefault();removeSelected()}});
   new ResizeObserver(render).observe(stage);load();chooseTool('pan');refresh();refreshTimer=setInterval(()=>{if(document.visibilityState==='visible')refresh()},20000);
 }

@@ -1,7 +1,7 @@
 'use strict';
 const {test}=require('node:test');const assert=require('node:assert/strict');const fs=require('node:fs');const path=require('node:path');const {spawn}=require('node:child_process');
 const root=path.join(__dirname,'..');const read=f=>fs.readFileSync(path.join(root,f),'utf8');
-test('Full Chart v2.0 has native candlestick and each drawing tool, without exchange orders',()=>{
+test('Full Chart has native candlestick and each drawing tool, without exchange orders',()=>{
  const h=read('public/chart/index.html'),js=read('public/chart-workspace.js');
  for(const t of ['pan','select','hline','trend','zone','note'])assert.match(h,new RegExp('data-tool="'+t+'"'));
  for(const tf of ['1m','5m','15m','30m','1h','4h'])assert.match(h,new RegExp('value="'+tf+'"'));
