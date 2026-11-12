@@ -1,0 +1,44 @@
+KUCOIN RADAR v2.2 — DEFAULT 30m + RISK/REWARD TOOL
+====================================================
+
+Pemasangan GitHub:
+1) Backup JSON lukisan chart dan journal PaperLab sebelum mengubah fail.
+2) Extract KuCoin_Radar_v2_2_GitHub_Update.zip.
+3) GitHub > repository signals > Add file > Upload files.
+4) Drag KANDUNGAN extract (bukan zip) ke root repository.
+   Pastikan public/chart/index.html, public/chart-workspace.js,
+   public/chart-workspace.css, public/sw.js dan package.json terganti.
+5) Commit changes; semak Render Auto-Deploy sehingga Live.
+6) Buka https://signals-ax4g.onrender.com/chart/ dan hard refresh.
+
+Ciri baharu:
+- Apabila Full Chart dibuka tanpa parameter timeframe, terus guna 30m.
+- Pulihkan coin terakhir pada browser sama. Jika deep link ?symbol=SOL-USDT
+  dihantar daripada scanner, coin yang diminta lebih utama; deep link
+  ?tf=5m yang memang dinyatakan masih dihormati.
+- Butang "Risk/Reward" di toolbar, mod Long atau Short.
+- Klik chart untuk buat setup: default TP 4%, SL 2%, modal 100 USDT,
+  fee 0.1% setiap sisi (semua boleh diubah).
+- Seret garisan TP / Entry / SL, zon tengah atau pemegang kiri/kanan
+  untuk mengalih zon dan menukar lebar dalam masa candle.
+- Double-click baris untuk edit harga; atau guna editor angka di bawah chart.
+- R:R, anggaran untung/rugi bersih selepas fee dipaparkan secara langsung.
+- Auto-save dan import/export JSON gunakan format kucoin-chart-v2 yang sama.
+- "Hantar ke PaperLab" bagi LONG menghantar symbol, entry, TP, SL,
+  modal dan fee ke kalkulator PaperLab; tidak membuka order. SHORT
+  hanya alat visual dan tidak boleh dihantar ke PaperLab Spot Long.
+
+PERHATIAN:
+- Tidak membuka sebarang order atau mengawal akaun KuCoin.
+- Chart/kalkulator guna harga rujukan; risiko slippage/spread dan
+  kadar fee sebenar tidak dimodelkan dalam R:R.
+- Simpanan lukisan adalah LOCAL pada browser ini; cloud sync hanya
+  berfungsi jika akaun + jadual Supabase pernah diaktifkan.
+- Render Free boleh tertidur tanpa trafik, telegram tidak dijamin 24/7.
+- Format simpanan lama hline/trend/zone/note tidak ditukar.
+- Scanner/Journal/Telegram/Server routes tidak diubah oleh patch ini.
+
+PENGUJIAN:
+- npm test: 87 ujian lulus (4 ujian v2.2 tambahan).
+- UI desktop dan telefon diperiksa dengan data candle DEMO sintetik
+  pada browser test. Deployment Live dan data LIVE belum disahkan.

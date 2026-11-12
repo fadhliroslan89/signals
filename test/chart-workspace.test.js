@@ -55,3 +55,11 @@ test('HTTP chart routes, asset CSP and candle endpoint work in demo without exte
   const paper=await fetch(base+'/paperlab/');assert.match(await paper.text(),/openChartWorkspace/);
  }finally{child.kill()}
 });
+
+test('v2.2 default 30m and adjustable R:R tool are included without impacting journal routes',()=>{
+ const h=read('public/chart/index.html'),js=read('public/chart-workspace.js');
+ assert.match(h,/data-tool="rr"/);assert.match(h,/value="30m" selected/);
+ for(const id of ['rrSide','rrEntry','rrTP','rrSL','rrCapital','rrFee','rrSend'])assert.match(h,new RegExp('id="'+id+'"'));
+ assert.match(js,/savedCoin\(\)/);assert.match(js,/rrRect/);assert.match(js,/function sendRR/);assert.match(js,/source:'CHART_RR'/);
+ assert.match(js,/PaperLab hanya Spot Long/);
+});
