@@ -1,0 +1,56 @@
+KUCOIN RADAR v2.3.0 — MARKET RISK GATE / NO TRADE
+=================================================
+Dibina berdasarkan ZIP GitHub signals-main yang pengguna upload (package.json v2.2.0).
+
+PENTING: MOD AUDIT, BUKAN SISTEM SIGNAL BUY YANG SUDAH DIVALIDASI
+- BUY / Telegram BUY / notifikasi BUY browser OFF secara default.
+- Status NO TRADE sentiasa dipaparkan di bahagian atas dashboard.
+- Scanner masih tunjuk data, Top 70+, Momentum, Breakout, PaperLab dan Trading Journal.
+- Coin skor tinggi kekal bahan pemerhatian, BUKAN arahan entry.
+- Tiada auto-order, stop-loss KuCoin atau kawalan akaun exchange.
+
+Market Risk Gate menolak BUY apabila:
+- data KuCoin lapuk atau BTC 1m/5m/15m belum lengkap,
+- BTC menurun kuat (ambang percubaan: -0.25%/1m, -0.40%/5m, -0.80%/15m),
+- sekurang-kurangnya 60% sampel coin cair bermomentum 15m negatif,
+- liputan coin cair terlalu kecil (kurang 25),
+- token stablecoin atau leveraged,
+- umur listing <7 hari atau umur listing tidak dapat disahkan.
+
+AMARAN TENTANG HAD DATA:
+- Tarikh listing tidak terdapat dalam data simbol yang digunakan pada kod ini.
+  Oleh itu, coin yang tidak dapat dibuktikan berusia >=7 hari juga disekat.
+- Circuit breaker 2% kerugian harian atau 2 loss berturut-turut tersedia dalam
+  modul pure `assessMarket`, tetapi TIDAK disambungkan kepada P&L akaun sebenar.
+  Browser Trading Journal bukan bukti semua trade akaun; jangan dakwa ia mengawal
+  risiko modal secara automatik.
+- Skor 100/100 BUKAN win rate 100%. TP 3–4% dalam 15–30m bukan jaminan.
+- Versi ini belum dibacktest dengan data sejarah 12 Nov 2026 atau akaun sebenar.
+- Syarat sekarang sengaja fail closed; tiada BUY walaupun semua momentum lulus
+  sekiranya market alert switch OFF atau umur listing tidak disahkan.
+- RADAR_ENABLE_BUY_ALERTS=1 ialah suis dalaman yang boleh melepasi audit pause,
+  TETAPI tidak akan melepasi umur listing tidak disahkan. JANGAN hidupkan untuk
+  trade sebenar sebelum penyelidikan/backtest/validasi bebas.
+
+SEBELUM UPDATE:
+1) Backup JSON Trading Journal dan PaperLab/cloud data jika relevan.
+2) Simpan salinan ZIP repository sedia ada untuk rollback.
+3) Extract KuCoin_Radar_v2_3_NO_TRADE_GitHub_Update.zip.
+4) GitHub fadhliroslan89/signals -> Add file -> Upload files.
+5) Upload kandungan ZIP (bukan folder luar atau fail ZIP) ke root repository.
+   Pastikan server.js dan package.json diganti serta fail berikut ada:
+   lib/market-risk-gate.js
+   public/index.html, public/app.js, public/styles.css, public/sw.js
+   test/market-risk-gate.test.js
+6) Commit changes -> Render Auto Deploy -> pastikan status Live.
+7) Di Chrome, buka https://signals-ax4g.onrender.com, refresh dua kali jika PWA
+   masih memaparkan fail JavaScript cache lama. Jangan Clear Storage/Data.
+8) Pastikan banner "NO TRADE — BUY DITAHAN", /api/status.marketRisk.allowBuys=false,
+   buyAlertsEnabled=false, dan tiada BUY disahkan/Telegram BUY yang dihantar.
+9) Jika portal gagal, buka /api/health dan /api/diagnostics. Backup serta rollback
+   ke commit GitHub sebelum patch jika perlu. Jangan ubah env token Telegram.
+
+DIUJI:
+- npm test: 99/99 ujian lulus (termasuk HTTP/DEMO/outage, gate, Telegram dan journal).
+- node --check: server.js, public/app.js, public/sw.js.
+- Ujian LOGIK/PAPARAN DEMO sahaja; belum diuji pada hosting Render atau live KuCoin.

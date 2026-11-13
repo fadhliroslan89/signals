@@ -1,3 +1,10 @@
+## v2.3 — NO TRADE Market Risk Gate (mod audit keselamatan)
+
+Gabungan berdasarkan kod GitHub v2.2.0, bukan menggantikan fungsi sedia ada.
+BUY di server, browser dan Telegram dijeda secara default; banner NO TRADE dipaparkan pada dashboard. Penapisan BTC dan breadth membantu mengenal pasti risiko tetapi belum divalidasi melalui backtest, dan umur listing yang tidak diketahui disekat. Tiada perlindungan stop order pada akaun KuCoin. Baca `KEMAS-KINI-v2.3-NO-TRADE.txt` sebelum deploy.
+
+---
+
 ## v1.9.6 — Stability patch for Render Free and Android PWA
 
 The existing scanner, journal and Telegram behavior are preserved. This version adds offline **UI shell only** (no cached market prices or signals), browser boot warning, compressed status response, minute heartbeat logs and `/api/diagnostics` for debugging intermittent Render Free availability. No deployment can prevent Render Free from sleeping after inactivity; 24/7 Telegram needs always-on hosting. See `KEMAS-KINI-v1.9.6-STABILITY.txt`.

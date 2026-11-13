@@ -1,6 +1,6 @@
 /* KuCoin Radar v1.9.6: offline shell ONLY, never cache price/status/Telegram APIs. */
 'use strict';
-const CACHE = 'kucoin-radar-shell-v2.2';
+const CACHE = 'kucoin-radar-shell-v2.3-safety';
 const SHELL = [
   '/', '/index.html', '/styles.css', '/app.js', '/startup.js', '/icon.svg',
   '/manifest.webmanifest', '/radar-live-chart.css', '/radar-live-chart.js',

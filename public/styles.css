@@ -182,3 +182,11 @@
 .main-view-tabs .chart-tab-link{display:inline-flex;align-items:center;justify-content:center;text-decoration:none;white-space:nowrap;color:#b1f5e0;background:#123b36;border:1px solid #298873;border-radius:12px;padding:11px 18px;font-weight:800;font-size:12px}.main-view-tabs .chart-tab-link:hover{background:#18594d;color:#fff}@media(max-width:650px){.main-view-tabs .chart-tab-link{flex:1;padding:9px 8px;font-size:11px}}
 
 .direct-full-chart{display:inline-flex;align-items:center;justify-content:center;border:1px solid #326376;border-radius:9px;background:#142e40;color:#b5e7ef;padding:9px 12px;text-decoration:none;font:800 11px system-ui,sans-serif;margin:4px;white-space:nowrap}.direct-full-chart:hover{border-color:#2bd5ae;color:#f0fffa}
+
+/* v2.3 Fail-closed trading risk banner: always visible, including offline state. */
+.market-risk-banner{display:flex;flex-direction:column;gap:7px;border:1px solid #d66b52;background:#371c22;color:#ffe5df;padding:14px 17px;border-radius:12px;margin:12px 0 18px;font-size:14px;line-height:1.45}
+.market-risk-banner strong{font-size:16px;letter-spacing:.03em;color:#ffd0c2}
+.market-risk-banner span{color:#f0c6bf}
+.market-risk-banner.permitted{border-color:#9b8d51;background:#22251e;color:#f1e5b0}
+.market-risk-banner.permitted strong{color:#f1e5b0}
+.market-risk-banner.permitted span{color:#e0dcb9}

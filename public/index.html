@@ -12,7 +12,7 @@
   <title>KuCoin Scalping Radar v2.0 — Full Chart</title>
   <link rel="icon" type="image/svg+xml" href="/icon.svg" />
   <link rel="manifest" href="/manifest.webmanifest" />
-  <link rel="stylesheet" href="/styles.css?v=1.9.6" />
+  <link rel="stylesheet" href="/styles.css?v=2.3" />
   <script src="/top10.js?v=1.6" defer></script>
   <script src="/acceleration.js?v=1.6" defer></script>
   <script src="/planner.js?v=1.6" defer></script>
@@ -22,7 +22,7 @@
   <script src="/quality70.js?v=1.9.4" defer></script>
   <script src="/hitrun.js?v=1.9" defer></script>
   <script src="/top70.js?v=1.9.3" defer></script>
-  <script src="/app.js?v=1.9.6" defer></script>
+  <script src="/app.js?v=2.3" defer></script>
   <script src="/chart-link.js?v=2.0" defer></script>
 </head>
 <body>
@@ -46,6 +46,7 @@
       <button type="button" id="tabFullDashboard" class="main-view-tab" role="tab" aria-selected="false" aria-controls="dashboardView">📊 Dashboard Penuh</button>
       <a class="main-view-tab chart-tab-link" href="/chart/">📈 Full Chart</a>
     </nav>
+    <section id="marketRiskGate" class="market-risk-banner" role="status" aria-live="polite"><strong id="riskGateStatus">NO TRADE — BUY DITAHAN</strong><span id="riskGateReason">Memeriksa keadaan pasaran. Alert BUY dijeda sehingga audit keselamatan selesai.</span></section>
     <div id="runtimeWarning" class="notice hidden" role="alert" aria-live="polite"></div>
     <main>
       <section id="top70View" class="top70-view" role="tabpanel" aria-labelledby="tabTop70">

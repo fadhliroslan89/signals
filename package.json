@@ -1,8 +1,8 @@
 {
   "name": "kucoin-scalping-radar",
-  "version": "2.2.0",
+  "version": "2.3.0",
   "private": true,
-  "description": "KuCoin USDT Spot momentum, breakout, journal and dual-tier intraday gainers and OHLCV volume spike monitor",
+  "description": "KuCoin USDT research radar with fail-closed NO TRADE Market Risk Gate, journal, chart and Telegram integration",
   "main": "server.js",
   "engines": {
     "node": ">=20"

@@ -18,6 +18,8 @@ const state = {top70Filter:'ALL',top70Query:'',top70Sort:'best',activeView:'top7
 try { const old=JSON.parse(localStorage.getItem(EARLY_COOLDOWN_KEY)||'[]'); if(Array.isArray(old))state.lastEarly=new Map(old.filter(x=>Array.isArray(x)&&typeof x[0]==='string'&&Number.isFinite(x[1]))); } catch {}
 try { const saved=JSON.parse(localStorage.getItem(BREAKOUT_COOLDOWN_KEY)||'[]');if(Array.isArray(saved))state.lastBreakout=new Map(saved.filter(x=>Array.isArray(x)&&typeof x[0]==='string'&&Number.isFinite(x[1]))); } catch {}
 const STATUS_ORDER = {BUY:0,WATCH:1,AVOID:2,DATA:3};
+// Only the server can grant BUY. A stale/absent risk gate MUST fail closed.
+const buysAllowed = () => state.latest?.marketRisk?.allowBuys === true && state.latest?.buyAlertsEnabled === true && !state.latest?.mock && !state.latest?.error && Date.now()-state.latest.updatedAt<90000;
 // Quality70 is an external browser script. Keep market data visible if it fails to load,
 // but fail closed for BUY: do not silently bypass the score-70 gate.
 const MISSING_QUALITY70 = Object.freeze({
@@ -81,6 +83,7 @@ function alertSound(){
   } catch {}
 }
 function browserAlert(r){
+  if(!buysAllowed())return;
   state.localAlerts.unshift({symbol:r.symbol,at:Date.now(),price:r.price,m15:r.m15,m30:r.m30});
   state.localAlerts=state.localAlerts.slice(0,20);
   toast(`BUY skor ${r.score}/100 (bukan jaminan): ${r.symbol} • breakout + RVOL • ${price(r.price)} USDT`);
@@ -90,6 +93,7 @@ function browserAlert(r){
   }
 }
 function earlyBrowserAlert(r){
+  if(!buysAllowed())return;
   const m=window.RadarAcceleration?.metrics(r);
   state.localAlerts.unshift({symbol:r.symbol,at:Date.now(),price:r.price,m15:r.m15,m30:r.m30,type:'EARLY'});
   state.localAlerts=state.localAlerts.slice(0,20);
@@ -102,6 +106,7 @@ function earlyBrowserAlert(r){
 function breakoutLabel(b){if(!b)return 'NONE';return b.signal||'NONE';}
 function breakoutEventTime(b){return b?.five && b.at5>=b.at1?b.at5:(b?.at1||b?.at5||0);}
 function breakoutBrowserAlert(r){
+  if(!buysAllowed())return;
   const b=r.breakout;
   state.localAlerts.unshift({symbol:r.symbol,at:Date.now(),price:r.price,m15:r.m15,m30:r.m30,type:'BREAKOUT'});
   state.localAlerts=state.localAlerts.slice(0,20);
@@ -138,6 +143,12 @@ function earlyCandidates(rows){
  return chosen.filter(r=>r.score>=70 && r.status==='WATCH' && window.RadarAcceleration?.nearBuy(r,cfg));
 }
 function handleSignals(rows){
+  if(!buysAllowed()){
+    // Reset baselines while blocked; never replay old signals after an outage.
+    for(const r of rows)state.previous.set(r.symbol,r.status);
+    state.previousBreakout=new Map();state.previousEarly=new Map();state.initial=false;
+    return;
+  }
   checkBreakoutAlerts(rows);
   const early=earlyCandidates(rows);
   const active=new Set(early.map(r=>r.symbol));
@@ -281,7 +292,10 @@ function initializeControls(){
 function recompute(allowAlert=true){
   state.rows=(state.latest?.rows||[]).map(r=>{
     const score=scoreOf(r);
-    const entryQuality=quality70().gate(window.RadarEntryQuality.evaluate(r,cfg),score);
+    let entryQuality=quality70().gate(window.RadarEntryQuality.evaluate(r,cfg),score);
+    if(entryQuality.status==='BUY' && (!buysAllowed() || r.status!=='BUY')){
+      entryQuality={...entryQuality,status:'AVOID',reason:`NO TRADE: ${state.latest?.marketRisk?.reason||'Server belum memberi kebenaran BUY'}`};
+    }
     return {...r,status:entryQuality.status,entryQuality,score};
   });
   if(allowAlert && state.latest?.updatedAt && Date.now()-state.latest.updatedAt<90000 && !state.latest?.error) handleSignals(state.rows);
@@ -296,6 +310,7 @@ async function fetchData(manual=false){
     data=await response.json();
   } catch(err){
     const notice=byId('errorNotice');notice.textContent=`Tidak dapat menghubungi server scanner: ${err.message}. Pastikan server sedang berjalan.`;notice.classList.remove('hidden');
+    const riskBox=byId('marketRiskGate');if(riskBox){byId('riskGateStatus').textContent='NO TRADE — OFFLINE';byId('riskGateReason').textContent='Server tidak dapat dicapai. Jangan guna data lama untuk entry.';}
     const globalWarning=byId('runtimeWarning');globalWarning.textContent='Sambungan server gagal. Semak status Render dan cuba refresh.';globalWarning.classList.remove('hidden');
     byId('connection').classList.add('offline');byId('connection').querySelector('span').textContent='OFFLINE';
     if(manual)toast('Kemas kini gagal.',true);
@@ -593,6 +608,10 @@ function renderAlerts(){
 function render(){
   const data=state.latest;
   if(!data)return;
+  const risk=data.marketRisk || {status:'NO_TRADE',allowBuys:false,reason:'Market Risk Gate tiada dalam respons server'};
+  byId('marketRiskGate').classList.toggle('permitted',buysAllowed());
+  byId('riskGateStatus').textContent=buysAllowed()?'PENAPIS PASARAN LULUS — RESEARCH ONLY':'NO TRADE — BUY DITAHAN';
+  byId('riskGateReason').textContent=risk.reason + ' • Tiada auto-order / stop-loss automatik. Skor bukan win rate.';
   const age=data.updatedAt?Math.max(0,Math.round((Date.now()-data.updatedAt)/1000)):null;
   const live=data.updatedAt && age<=90 && !data.error;
   const conn=byId('connection');conn.classList.toggle('offline',!live);conn.querySelector('span').textContent=data.mock?'DEMO DATA':live?'LIVE KUCOIN':'DATA TERGANGGU';
@@ -619,9 +638,9 @@ function render(){
   const bootNote=byId('bootNotice');
   bootNote.classList.toggle('hidden',!pending&&!data.mock&&!!data.updatedAt);
   bootNote.textContent=data.mock?'MOD DEMO: Ini data ujian, BUKAN harga KuCoin semasa. Matikan MOCK_KUCOIN untuk live.':pending?`Sejarah 1-minit sedang disediakan: ${done}/${total} pair (${Math.round(done/total*100)}%). Pair belum selesai akan ditanda DATA. Kegagalan: ${boot.failures||0}.`:'Menunggu data pasaran KuCoin...';
-  byId('tgChip').textContent=data.telegramEnabled?'TELEGRAM ON':'BROWSER';
+  byId('tgChip').textContent=data.telegramEnabled?(buysAllowed()?'TELEGRAM ON':'TELEGRAM BUY PAUSED'):'BROWSER';
   const tgHeader=byId('tgHeaderStatus');
-  if(tgHeader){tgHeader.textContent=data.telegramEnabled?(data.telegram?.lastError?'TELEGRAM ERROR':`TELEGRAM ON • ${data.telegram?.mode==='both'?'70+ & BUY':'BUY'}`):'TELEGRAM OFF';tgHeader.classList.toggle('tg-error',!!data.telegram?.lastError);tgHeader.title=data.telegram?.lastError||'Telegram memerlukan konfigurasi dalam Render Environment';}
+  if(tgHeader){tgHeader.textContent=data.telegramEnabled?(!buysAllowed()?'TELEGRAM BUY PAUSED':data.telegram?.lastError?'TELEGRAM ERROR':`TELEGRAM ON • ${data.telegram?.mode==='both'?'70+ & BUY':'BUY'}`):'TELEGRAM OFF';tgHeader.classList.toggle('tg-error',!!data.telegram?.lastError);tgHeader.title=data.telegram?.lastError||'Telegram memerlukan konfigurasi dalam Render Environment';}
   renderTop70();renderQuality70();renderLeaders();renderHunter();renderHitRun();renderRows();renderAlerts();
   window.RadarJournalUI?.updateMarket(state.rows,{updatedAt:data.updatedAt,mock:data.mock,error:data.error});
 }

@@ -30,7 +30,9 @@ for(const mock of [true,false]){
   assert.match(await sw.text(),/never cache price\/status/i);
   const h=await health.json(); assert.equal(h.processAlive,true);
   const d=await diag.json(); assert.equal(d.processAlive,true);assert.ok(d.memoryMB.rss>0);
-  const s=await status.json();assert.equal(s.strategyVersion,'2.0.0');
+  const s=await status.json();assert.equal(s.strategyVersion,'2.3.0-safety');
+  assert.equal(s.marketRisk.allowBuys,false);
+  assert.equal(s.rows.some(r=>r.status==='BUY'),false);
   assert.equal(s.mock,mock);
   if(!mock){
     await new Promise(r=>setTimeout(r,150));

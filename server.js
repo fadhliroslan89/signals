@@ -15,6 +15,7 @@ const { candlesFromKucoin, analyze: breakoutAnalyze } = require('./lib/breakout'
 const { isExcluded: isHitrunExcluded } = require('./public/hitrun');
 const { prioritizedSymbols } = require('./lib/priority');
 const { createTelegramEngine, safeMode } = require('./lib/telegram-alerts');
+const { assessMarket, guardRows } = require('./lib/market-risk-gate');
 const PORT = Number(process.env.PORT || 3000);
 const HOST = process.env.HOST || '0.0.0.0';
 const MOCK = process.env.MOCK_KUCOIN === '1';
@@ -31,6 +32,8 @@ const TELEGRAM_CHAT = process.env.TELEGRAM_CHAT_ID || '';
 const telegramEnabled = !!(TELEGRAM_TOKEN && TELEGRAM_CHAT) && !MOCK;
 const TELEGRAM_MODE = safeMode(process.env.TELEGRAM_ALERT_MODE || 'both');
 const TELEGRAM_STARTUP_TEST = process.env.TELEGRAM_STARTUP_TEST === '1';
+// Default OFF. Do NOT enable for real-money trading without out-of-sample validation.
+const LIVE_BUY_ALERTS_ENABLED = process.env.RADAR_ENABLE_BUY_ALERTS === '1';
 let telegramStartupTestSent = false;
 const cfg = { ...DEFAULTS };
 const state = {
@@ -44,6 +47,7 @@ const state = {
   hunterSyncing: false,
   hunterCursor: 0,
   rows: [],
+  marketRisk:{status:'NO_TRADE',allowBuys:false,code:'STARTING',reason:'Server sedang bermula; signal BUY dihentikan'},
   lastUpdate: 0,
   symbolsUpdated: 0,
   bootstrap: { done: 0, total: 0, failures: 0, active: false },
@@ -235,6 +239,8 @@ function computeRows() {
       return r;
     }).filter(Boolean)
     .sort((a,b) => b.score - a.score || b.volume - a.volume);
+  state.marketRisk = assessMarket({rows:state.rows,updatedAt:state.lastUpdate,now,liveBuyAlertsEnabled:LIVE_BUY_ALERTS_ENABLED});
+  state.rows = guardRows(state.rows,{marketRisk:state.marketRisk,now,requireVerifiedAge:true});
 }
 async function telegram(message) {
   if (!telegramEnabled) throw new Error('Telegram not configured');
@@ -251,6 +257,7 @@ async function telegram(message) {
 // Preserve the existing recent BUY activity list in the web dashboard even
 // when Telegram credentials are not configured. Sending to Telegram is separate.
 function recordBuyActivity() {
+  if (!state.marketRisk.allowBuys) return;
   const now = Date.now();
   for (const r of state.rows) {
     if (r.status !== 'BUY' || r.score < MIN_SIGNAL_SCORE) continue;
@@ -263,7 +270,8 @@ function recordBuyActivity() {
 }
 const telegramEngine = createTelegramEngine({ send: telegram, mode: TELEGRAM_MODE });
 async function processTelegram() {
-  if (!telegramEnabled || !state.lastUpdate || state.error) return;
+  // Even a correctly configured Telegram token MUST NOT bypass the market gate.
+  if (!telegramEnabled || !state.lastUpdate || state.error || !state.marketRisk.allowBuys) return;
   if (TELEGRAM_STARTUP_TEST && !telegramStartupTestSent) {
     telegramStartupTestSent = true; // Send once per process start; never loop on bad token.
     try {
@@ -339,7 +347,7 @@ function diagnostics() {
   const now=Date.now(), memory=process.memoryUsage();
   return {
     processAlive:true, marketFresh:state.lastUpdate>0 && now-state.lastUpdate<90_000,
-    strategyVersion:'2.0.0-chart', now,
+    strategyVersion:'2.3.0-safety', now, marketRisk:state.marketRisk,
     uptimeSeconds:Math.round(process.uptime()),
     lastMarketUpdate:state.lastUpdate, marketAgeSeconds:state.lastUpdate?Math.round((now-state.lastUpdate)/1000):null,
     lastPollStarted:state.lastPollStarted, lastPollFinished:state.lastPollFinished,
@@ -466,7 +474,7 @@ const server = http.createServer((req, res) => {
   if (req.method !== 'GET' && req.method !== 'HEAD') return json(res,{error:'Method not allowed'},405);
   const url = new URL(req.url || '/', 'http://localhost');
   if (url.pathname === '/api/status') return sendStatus(req,res,{
-    strategyVersion:'2.0.0', updatedAt:state.lastUpdate, now:Date.now(), pairs:state.allowed.size, fetched:state.rows.length,
+    strategyVersion:'2.3.0-safety', marketRisk:state.marketRisk, buyAlertsEnabled:LIVE_BUY_ALERTS_ENABLED, updatedAt:state.lastUpdate, now:Date.now(), pairs:state.allowed.size, fetched:state.rows.length,
     bootstrap:state.bootstrap, error:state.error, mock:MOCK, telegramEnabled, telegram: { configured: telegramEnabled, ...telegramEngine.status() }, defaults:cfg,
     hunter:{monitored:state.hunterWatched.size,ready:state.rows.filter(r => r.breakout?.coverage === 'READY').length,limit:HUNTER_LIMIT,lastRefreshed:state.hunterLastRefresh,failures:state.hunterFailures},
     alerts:state.alertLog.slice(0,12), rows:state.rows,
@@ -508,7 +516,7 @@ const server = http.createServer((req, res) => {
     ok:!!state.lastUpdate && Date.now()-state.lastUpdate<90_000,
     processAlive:true, marketFresh:!!state.lastUpdate && Date.now()-state.lastUpdate<90_000,
     lastUpdate:state.lastUpdate, error:state.error, uptimeSeconds:Math.round(process.uptime()),
-    pollInProgress:state.syncing, bootstrapDone:state.bootstrap.done, bootstrapTotal:state.bootstrap.total
+    pollInProgress:state.syncing, bootstrapDone:state.bootstrap.done, bootstrapTotal:state.bootstrap.total, marketRisk:state.marketRisk
   });
   if (url.pathname === '/api/diagnostics') return json(res, diagnostics());
   // Resolve the folder URL to PaperLab's HTML entry point.
