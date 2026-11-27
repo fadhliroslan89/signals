@@ -17,6 +17,25 @@ const favorites = new Set(Array.isArray(favoriteList) ? favoriteList : []);
 const state = {top70Filter:'ALL',top70Query:'',top70Sort:'best',activeView:'top70',rows:[],latest:null,filter:'ALL',search:'',sort:'rank',shown:50,initial:true, previous:new Map(),previousEarly:new Map(),lastEarly:new Map(),previousBreakout:new Map(),lastBreakout:new Map(), alertEnabled:false,earlyEnabled:false,breakoutEnabled:false,sound:false, localAlerts:[], audio:null,modalSymbol:null};
 try { const old=JSON.parse(localStorage.getItem(EARLY_COOLDOWN_KEY)||'[]'); if(Array.isArray(old))state.lastEarly=new Map(old.filter(x=>Array.isArray(x)&&typeof x[0]==='string'&&Number.isFinite(x[1]))); } catch {}
 try { const saved=JSON.parse(localStorage.getItem(BREAKOUT_COOLDOWN_KEY)||'[]');if(Array.isArray(saved))state.lastBreakout=new Map(saved.filter(x=>Array.isArray(x)&&typeof x[0]==='string'&&Number.isFinite(x[1]))); } catch {}
+// Widget deep link: /?coin=SOL-USDT opens the existing read-only coin detail.
+// Whitelist USDT symbols; never allow URL-controlled trading actions.
+const requestedWidgetCoin = new URLSearchParams(window.location.search).get('coin');
+let pendingWidgetCoin = /^[A-Z0-9]{1,20}-USDT$/.test(requestedWidgetCoin || '') ? requestedWidgetCoin : null;
+let widgetCoinPolls = 0;
+function openPendingWidgetCoin(){
+  if(!pendingWidgetCoin)return;
+  const symbol=pendingWidgetCoin;
+  if(state.rows.some(r=>r.symbol===symbol)){
+    pendingWidgetCoin=null;
+    openDetail(symbol);
+    return;
+  }
+  widgetCoinPolls++;
+  if(widgetCoinPolls>=8){
+    pendingWidgetCoin=null;
+    toast('Coin '+symbol+' belum tersedia dalam imbasan semasa. Cuba cari dalam dashboard.',true);
+  }
+}
 const STATUS_ORDER = {BUY:0,WATCH:1,AVOID:2,DATA:3};
 // Only the server can grant BUY. A stale/absent risk gate MUST fail closed.
 const buysAllowed = () => state.latest?.marketRisk?.allowBuys === true && state.latest?.buyAlertsEnabled === true && !state.latest?.mock && !state.latest?.error && Date.now()-state.latest.updatedAt<90000;
@@ -301,6 +320,7 @@ function recompute(allowAlert=true){
   if(allowAlert && state.latest?.updatedAt && Date.now()-state.latest.updatedAt<90000 && !state.latest?.error) handleSignals(state.rows);
   else for(const r of state.rows) state.previous.set(r.symbol,r.status);
   render();
+  openPendingWidgetCoin();
 }
 async function fetchData(manual=false){
   let data;
