@@ -1,8 +1,8 @@
 {
   "name": "kucoin-scalping-radar",
-  "version": "2.3.0",
+  "version": "2.4.0",
   "private": true,
-  "description": "KuCoin USDT research radar with fail-closed NO TRADE Market Risk Gate, journal, chart and Telegram integration",
+  "description": "KuCoin Radar with fail-closed risk gate, dedicated Live PWA, read-only widget API and existing journal/Telegram",
   "main": "server.js",
   "engines": {
     "node": ">=20"

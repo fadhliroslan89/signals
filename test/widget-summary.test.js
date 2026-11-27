@@ -1,0 +1,15 @@
+'use strict';
+const test=require('node:test');
+const assert=require('node:assert/strict');
+const {makeWidgetSummary}=require('../lib/widget-summary');
+const T=Date.UTC(2026,10,27,1);
+const row=(symbol='SOL-USDT', score=76, options={})=>({symbol,score,status:'WATCH',volume:9e6,spread:.02,price:120,m15:1.25,...options});
+const state=()=>({allowed:new Set(['SOL-USDT','BTC-USDT']),lastUpdate:T-25000,marketRisk:{status:'NO_TRADE',code:'AUDIT_PAUSE',allowBuys:false,reason:'Audit belum selesai'},rows:[row('SOL-USDT',76),row('BTC-USDT',83)]});
+test('returns fail-closed NO TRADE with working market risk',()=>{const s=makeWidgetSummary(state(),{now:T});assert.equal(s.risk.buyAllowed,false);assert.equal(s.risk.status,'NO_TRADE');assert.equal(s.top[0].symbol,'BTC-USDT');});
+test('stale data never exposes outdated coins',()=>{const s=state();s.lastUpdate=T-100000;const d=makeWidgetSummary(s,{now:T});assert.deepEqual(d.top,[]);assert.equal(d.marketFresh,false);assert.equal(d.risk.code,'STALE_DATA');});
+test('missing data fails closed',()=>{const d=makeWidgetSummary({}, {now:T});assert.equal(d.risk.status,'NO_TRADE');assert.equal(d.top.length,0);});
+test('stablecoins and leveraged tokens excluded',()=>{const s=state();s.rows.push(row('USDC-USDT',99));s.rows.push(row('BTC3L-USDT',98));assert.equal(makeWidgetSummary(s,{now:T}).top.length,2);});
+test('volume and spread gate and top 3 limit',()=>{const s=state();s.rows.push(row('XRP-USDT',99,{spread:.5}),row('ADA-USDT',98,{volume:1e6}),row('ETH-USDT',91),row('DOT-USDT',90));const d=makeWidgetSummary(s,{now:T});assert.equal(d.top.length,3);assert.deepEqual(d.top.map(x=>x.symbol),['ETH-USDT','DOT-USDT','BTC-USDT']);});
+test('widget does not expose Telegram or journal keys',()=>{const s=state();s.TELEGRAM_BOT_TOKEN='secret';s.journal={entries:[{private:'x'}]};const d=JSON.stringify(makeWidgetSummary(s,{now:T}));assert.doesNotMatch(d,/secret|private|token|journal/i);});
+test('backend never upgrades blocked BUY candidate',()=>{const s=state();s.rows=[row('SOL-USDT',99,{status:'AVOID'})];const d=makeWidgetSummary(s,{now:T});assert.equal(d.top[0].status,'AVOID');assert.equal(d.risk.buyAllowed,false);});
+test('DEMO visibly marked and no buy permission if gate blocked',()=>{const d=makeWidgetSummary(state(),{now:T,mock:true});assert.equal(d.source,'DEMO');assert.equal(d.risk.buyAllowed,false);});

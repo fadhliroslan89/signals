@@ -16,6 +16,7 @@ const { isExcluded: isHitrunExcluded } = require('./public/hitrun');
 const { prioritizedSymbols } = require('./lib/priority');
 const { createTelegramEngine, safeMode } = require('./lib/telegram-alerts');
 const { assessMarket, guardRows } = require('./lib/market-risk-gate');
+const { makeWidgetSummary } = require('./lib/widget-summary');
 const PORT = Number(process.env.PORT || 3000);
 const HOST = process.env.HOST || '0.0.0.0';
 const MOCK = process.env.MOCK_KUCOIN === '1';
@@ -473,6 +474,7 @@ async function serveChart(res,url) {
 const server = http.createServer((req, res) => {
   if (req.method !== 'GET' && req.method !== 'HEAD') return json(res,{error:'Method not allowed'},405);
   const url = new URL(req.url || '/', 'http://localhost');
+  if (url.pathname === '/api/widget/summary') return json(res, makeWidgetSummary(state, {mock:MOCK, now:Date.now()}));
   if (url.pathname === '/api/status') return sendStatus(req,res,{
     strategyVersion:'2.3.0-safety', marketRisk:state.marketRisk, buyAlertsEnabled:LIVE_BUY_ALERTS_ENABLED, updatedAt:state.lastUpdate, now:Date.now(), pairs:state.allowed.size, fetched:state.rows.length,
     bootstrap:state.bootstrap, error:state.error, mock:MOCK, telegramEnabled, telegram: { configured: telegramEnabled, ...telegramEngine.status() }, defaults:cfg,
@@ -520,6 +522,7 @@ const server = http.createServer((req, res) => {
   });
   if (url.pathname === '/api/diagnostics') return json(res, diagnostics());
   // Resolve the folder URL to PaperLab's HTML entry point.
+  if (url.pathname === '/live' || url.pathname === '/live/') return serveFile(res, '/live/index.html');
   if (url.pathname === '/chart' || url.pathname === '/chart/') return serveFile(res, '/chart/index.html');
   if (url.pathname === '/paperlab' || url.pathname === '/paperlab/') {
     return serveFile(res, '/paperlab/index.html');

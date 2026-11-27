@@ -1,12 +1,12 @@
 /* KuCoin Radar v1.9.6: offline shell ONLY, never cache price/status/Telegram APIs. */
 'use strict';
-const CACHE = 'kucoin-radar-shell-v2.3-safety';
+const CACHE = 'kucoin-radar-shell-v2.4-widget';
 const SHELL = [
   '/', '/index.html', '/styles.css', '/app.js', '/startup.js', '/icon.svg',
   '/manifest.webmanifest', '/radar-live-chart.css', '/radar-live-chart.js',
   '/paperlab-link.js', '/top10.js', '/acceleration.js', '/planner.js',
   '/journal-core.js', '/journal-ui.js', '/chart/', '/chart/index.html', '/chart-workspace.css', '/chart-workspace.js', '/chart-cloud.js', '/chart-link.js', '/entry-quality.js', '/quality70.js',
-  '/hitrun.js', '/top70.js'
+  '/hitrun.js', '/top70.js', '/live/', '/live/index.html', '/live/live.css', '/live/live.js'
 ];
 self.addEventListener('install', event => {
   event.waitUntil((async () => {
@@ -41,11 +41,11 @@ self.addEventListener('fetch', event => {
         const response=await fetch(req,{signal:AbortSignal.timeout(8000)});
         if(response.ok) {
           const cache=await caches.open(CACHE);
-          await cache.put('/', response.clone());
+          await cache.put(url.pathname, response.clone());
         }
         if(response.ok) return response;
       } catch (_) {}
-      const cached = await caches.match('/') || await caches.match('/index.html');
+      const cached = await caches.match(url.pathname) || await caches.match('/') || await caches.match('/index.html');
       return cached || new Response('<!doctype html><html lang="ms"><meta name="viewport" content="width=device-width,initial-scale=1"><body style="font-family:sans-serif;padding:2rem;background:#071322;color:white"><h2>KuCoin Radar belum dapat dihubungi</h2><p>Server Render mungkin sedang bangun atau tidak memberi respons. Cuba buka semula dalam beberapa saat. Tiada signal trading sah ketika offline.</p><button onclick="location.reload()">Cuba lagi</button></body></html>',{status:503,headers:{'Content-Type':'text/html;charset=utf-8'}});
     })());return;
   }
